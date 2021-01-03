@@ -28,7 +28,7 @@ class Discriminator(nn.Module):
         x = F.relu(x)
         x = x.flatten(1,3)
         x = self.f1(x)
-        x = torch.sigmoid(x)
+        #x = torch.sigmoid(x)
         return x
 
 class Generator(nn.Module):
@@ -63,7 +63,6 @@ if __name__ == '__main__':
     imgs = (torch.as_tensor(train_data.data[:16], dtype=torch.float32).transpose(1,-1) / 127.5) - 1.0
     #imgs = imgs#.cuda()
 
-    bce = nn.BCELoss()
     #fixed_noise = torch.randn(64, nz, 1, 1, device=device)
     real_label = 1.
     fake_label = 0.
@@ -79,22 +78,22 @@ if __name__ == '__main__':
         # real example
         disc_optim.zero_grad()
         real_disc = disc(imgs)
-        real_loss = bce(real_disc, torch.ones_like(real_disc))
         # fake example
         noise = torch.randn(16, 128)
         fake = gen(noise)
         fake_disc = disc(fake)
-        fake_loss = bce(fake_disc, torch.zeros_like(fake_disc))
         # backward
-        loss = real_loss + fake_loss
-        loss.backward()
+        disc_loss = (real_disc - fake_disc).mean()
+        disc_loss += 0.1*(real_disc**2 + fake_disc**2).mean()
+        #disc_loss = real_disc.mean() - fake_disc.mean()
+        disc_loss.backward()
         disc_optim.step()
 
         # Generator
         gen_optim.zero_grad()
         fake = gen(noise)
         fake_disc = disc(fake)
-        gen_loss = bce(fake_disc, torch.ones_like(fake_disc))
+        gen_loss = fake_disc.mean()
         gen_loss.backward()
         gen_optim.step()
 
@@ -102,7 +101,6 @@ if __name__ == '__main__':
             pred = export(fake)
             truth = export(imgs)
             img = np.concatenate([truth, np.zeros_like(truth), pred], axis=1)
-            plt.imsave('test1.png', img)
-            print(i, real_loss.item(), fake_loss.item(), gen_loss.item())
-
+            plt.imsave('test2.png', img)
+            print(i, disc_loss.item())
 

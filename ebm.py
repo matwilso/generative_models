@@ -45,11 +45,12 @@ class ReplayBuffer:
 class EBM(nn.Module):
     def __init__(self):
         super().__init__()
-        self.c1 = nn.Conv2d(3, 32, 3, stride=2)
-        self.c2 = nn.Conv2d(32, 64, 3, stride=2)
-        self.c3 = nn.Conv2d(64, 128, 3, stride=2)
-        self.c4 = nn.Conv2d(128, 256, 3, stride=1)
-        self.f1 = nn.Linear(256, 1)
+        spec = lambda x: torch.nn.utils.spectral_norm(x)
+        self.c1 = spec(nn.Conv2d(3, 32, 3, stride=2))
+        self.c2 = spec(nn.Conv2d(32, 64, 3, stride=2))
+        self.c3 = spec(nn.Conv2d(64, 128, 3, stride=2))
+        self.c4 = spec(nn.Conv2d(128, 256, 3, stride=1))
+        self.f1 = spec(nn.Linear(256, 1))
 
     def forward(self, x):
         x = self.c1(x)
@@ -65,13 +66,13 @@ class EBM(nn.Module):
         return x
 
 def langevin(ebm, x):
-    x = torch.as_tensor(x, dtype=torch.float32)
+    x = torch.as_tensor(x, dtype=torch.float32).cuda()
     x.requires_grad_()
     ox = x.data.clone().detach()
 
     for i in range(60):
         ebm.zero_grad()
-        x.data.add_(tdib.Normal(torch.zeros(x.shape), 0.005*torch.ones(x.shape)).sample())
+        x.data.add_(tdib.Normal(torch.zeros(x.shape), 0.005*torch.ones(x.shape)).sample().cuda())
         energy = ebm(x).sum()
         energy.backward()
         #print(f'{i} energy {energy}')
@@ -89,11 +90,11 @@ if __name__ == '__main__':
     #test_data  = torchvision.datasets.CIFAR10(root, train=False, transform=None, target_transform=None, download=True)
     #print(len(train_data), len(test_data))
     rb = ReplayBuffer(int(1e4))
-
-    ebm = EBM()
+    ebm = EBM().cuda()
+    #ebm = torch.nn.utils.spectral_norm(ebm)
     ebm_optim = Adam(ebm.parameters(), lr=1e-4, betas=(0.0, 0.999))
     imgs = (torch.as_tensor(train_data.data[:16], dtype=torch.float32).transpose(1,-1) / 127.5) - 1.0
-    #imgs = imgs#.cuda()
+    imgs = imgs.cuda()
     def export(img):
         img = (255 * (img.transpose(1,-1) + 1.0) / 2.0).detach().cpu().numpy().astype(np.uint8)
         img = img.reshape(-1, 32, 3)
@@ -104,7 +105,7 @@ if __name__ == '__main__':
         positive = imgs
         negative = rb.sample_batch(16)
         negative = langevin(ebm, negative)
-        rb.store_n(negative)
+        rb.store_n(negative.cpu())
         # EBM
         ebm_optim.zero_grad()
         E_xp = ebm(positive)
@@ -113,17 +114,15 @@ if __name__ == '__main__':
         l2_reg_loss = 1.0*(E_xp**2 + E_xn**2)
         loss = (ebm_loss + l2_reg_loss).mean()
         loss.backward()
+        grad_norm = torch.nn.utils.clip_grad_norm_(ebm.parameters(), 100).item()
         ebm_optim.step()
-        # TODO: clip big grads. and use spectral norm
+        # TODO: use spectral norm
+        # TODO: better network
 
         if i % 100 == 0:
-            fake = rb.sample_batch(16, random=True)
-            fake = langevin(ebm, fake)
-
-            pred = export(fake)
+            pred = export(negative.cpu())
             truth = export(imgs)
             img = np.concatenate([truth, np.zeros_like(truth), pred], axis=1)
             plt.imsave('test.png', img)
-            print(loss.item(), ebm_loss.mean().item(), l2_reg_loss.mean().item()))
-
+            print(i, loss.item(), ebm_loss.mean().item(), l2_reg_loss.mean().item(), grad_norm)
 
