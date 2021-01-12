@@ -1,4 +1,8 @@
+import sys
+from collections import defaultdict
 import numpy as np
+from torch.utils.tensorboard import SummaryWriter
+
 import matplotlib.pyplot as plt
 import torchvision
 from torch.optim import Adam
@@ -9,85 +13,81 @@ from torch import nn
 import torch.nn.functional as F
 
 # TODO: VQ VAE may be worth doing. but maybe as a separate repo.
+from nets import E1, D1
+import argparse
+import utils
 
-class Encoder(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.c1 = nn.Conv2d(3, 32, 3, stride=2)
-        self.c2 = nn.Conv2d(32, 64, 3, stride=2)
-        self.c3 = nn.Conv2d(64, 128, 3, stride=2)
-        self.c4 = nn.Conv2d(128, 256, 3, stride=1)
+H = utils.AttrDict()
+H.bs = 512
+H.z_size = 128
+H.bn = 0
+H.device = 'cuda'
+H.log_n = 1000
+H.done_n = int(1e5)
+H.b = 1.0
+H.name = './logs/'
+H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
 
-    def forward(self, x):
-        x = self.c1(x)
-        x = F.relu(x)
-        x = self.c2(x)
-        x = F.relu(x)
-        x = self.c3(x)
-        x = F.relu(x)
-        x = self.c4(x)
-        x = x.flatten(1,3)
-        mu, log_std = x.split(128, dim=1)
-        std = F.softplus(log_std)
-        norm = tdib.Normal(mu, std)
-        prior = tdib.Normal(torch.zeros_like(mu), torch.ones_like(std))
-        prior_loss = tdib.kl_divergence(norm, prior)
-        return prior_loss.mean(), norm.rsample(), mu
+def dump_logger(logger, writer, i, H):
+    print('='*30)
+    print(i)
+    for key in logger:
+        val = np.mean(logger[key])
+        writer.add_scalar(key, val, i)
+        print(key, val)
+    print(H.full_cmd)
+    print('='*30)
+    return defaultdict(lambda: [])
 
-class Decoder(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.d1 = nn.ConvTranspose2d(128, 64, 3, stride=2)
-        self.d2 = nn.ConvTranspose2d(64, 32, 3, stride=2)
-        self.d3 = nn.ConvTranspose2d(32, 16, 3, stride=2)
-        self.d4 = nn.ConvTranspose2d(16, 3, 4, stride=2)
-
-    def forward(self, x):
-        x = self.d1(x[...,None,None])
-        x = F.relu(x)
-        x = self.d2(x)
-        x = F.relu(x)
-        x = self.d3(x)
-        x = F.relu(x)
-        x = self.d4(x)
-        x = tdib.Normal(x, 1)
-        return x
+def plot_samples(writer, *args):
+    l = []
+    for a in args:
+        upr = utils.unproc(a)
+        l += [upr, np.zeros_like(upr)]
+    img = np.concatenate(l, axis=1)
+    plt.imsave('test.png', img)
+    writer.add_image('test', img/255.0, i, dataformats='HWC')
 
 if __name__ == '__main__':
-    from utils import preproc, export, sample_batch
-    root = './data'
-    train_data = torchvision.datasets.CIFAR10(root, train=True, transform=None, target_transform=None, download=True)
-    #test_data  = torchvision.datasets.CIFAR10(root, train=False, transform=None, target_transform=None, download=True)
-    #print(len(train_data), len(test_data))
-    device = 'cuda'
-    encoder = Encoder().to(device)
-    decoder = Decoder().to(device)
-    optimizer = Adam(chain(encoder.parameters(), decoder.parameters()), lr=3e-4)
-    imgs = (torch.as_tensor(train_data.data[:16], dtype=torch.float32).transpose(1,-1) / 127.5) - 1.0
-    bs = 1024
+    from utils import CIFAR, MNIST
+    import argparse
+    parser = argparse.ArgumentParser()
+    for key, value in H.items():
+        parser.add_argument(f'--{key}', type=type(value), default=value)
+    H = parser.parse_args()
+
+    writer = SummaryWriter(H.name)
+    logger = dump_logger({}, writer, 0)
+
+    ds = CIFAR(H)
+    #ds = MNIST(device)
+    encoder = E1(H).to(H.device)
+    decoder = D1(H).to(H.device)
+    optimizer = Adam(chain(encoder.parameters(), decoder.parameters()), lr=1e-4)
 
     for i in count():
         optimizer.zero_grad()
-        batch = sample_batch(train_data, bs).to(device)
+        batch = ds.sample_batch(H.bs)
         prior_loss, code, mu = encoder(batch)
         recondist = decoder(code)
 
-        recon_loss = -recondist.log_prob(batch).mean()
-
-        loss = prior_loss + recon_loss
+        recon_loss = -recondist.log_prob(batch)
+        loss = (H.b*prior_loss + recon_loss.mean((-1, -2, -3))).mean()
         loss.backward()
         optimizer.step()
+        logger['total_loss'] += [loss.detach().cpu()]
+        logger['prior_loss'] += [prior_loss.mean().detach().cpu()]
+        logger['recon_loss'] += [recon_loss.mean().detach().cpu()]
 
-        if i % 1000 == 0:
+        if i % H.log_n == 0:
+            encoder.eval()
+            decoder.eval()
+            logger = dump_logger(logger, writer, i, H)
             reconmu = decoder(mu[:10]).mean
-            reconsamp = decoder(torch.randn(mu[:10].shape).to(device)).mean
-            pred = export(reconmu)
-            sample = export(reconsamp)
-            truth = export(batch[:10])
-            black = np.zeros_like(truth)
-            img = np.concatenate([truth, black, pred, black, sample], axis=1)
-            plt.imsave('test.png', img)
-            print(i, loss.item(), prior_loss.item(), recon_loss.item())
-
-
-
+            reconsamp = decoder(torch.randn(mu[:10].shape).to(H.device)).mean
+            plot_samples(writer, batch[:10], reconmu, reconsamp)
+            writer.flush()
+            encoder.train()
+            decoder.train()
+        if i >= H.done_n:
+            break

@@ -7,7 +7,6 @@ import torch
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
-from utils import sample_batch, preproc, export
 
 # TODO: try out spec norm
 
@@ -53,19 +52,15 @@ class Generator(nn.Module):
         return x
 
 if __name__ == '__main__':
-    root = './data'
-    train_data = torchvision.datasets.CIFAR10(root, train=True, transform=None, target_transform=None, download=True)
-    #test_data  = torchvision.datasets.CIFAR10(root, train=False, transform=None, target_transform=None, download=True)
-    #print(len(train_data), len(test_data))
+    from utils import CIFAR, MNIST
     device = 'cuda'
+    ds = CIFAR(device)
     disc = Discriminator().to(device)
     gen = Generator().to(device)
 
     # Setup Adam optimizers for both G and D
     disc_optim = Adam(disc.parameters(), lr=1e-4, betas=(0.5, 0.999))
     gen_optim = Adam(gen.parameters(), lr=1e-4, betas=(0.5, 0.999))
-    imgs = (torch.as_tensor(train_data.data[:16], dtype=torch.float32).transpose(1,-1) / 127.5) - 1.0
-    #imgs = imgs#.cuda()
 
     bs = 256
 
@@ -73,13 +68,12 @@ if __name__ == '__main__':
     real_label = 1.
     fake_label = 0.
 
-
     for i in count():
         ## Train with all-real batch
         # Discriminator
         # real example
         disc_optim.zero_grad()
-        batch = sample_batch(train_data, bs).to(device)
+        batch = ds.sample_batch(bs).to(device)
         real_disc = disc(batch)
         # fake example
         noise = torch.randn(bs, 128).to(device)
@@ -101,8 +95,8 @@ if __name__ == '__main__':
         gen_optim.step()
 
         if i % 1000 == 0:
-            pred = export(fake[:10])
-            truth = export(batch[:10])
+            pred = ds.export(fake[:10])
+            truth = ds.export(batch[:10])
             img = np.concatenate([truth, np.zeros_like(truth), pred], axis=1)
             plt.imsave('test2.png', img)
             print(i, disc_loss.item())
