@@ -125,4 +125,3 @@ if __name__ == '__main__':
             img = np.concatenate([truth, np.zeros_like(truth), pred], axis=1)
             plt.imsave('test.png', img)
             print(i, loss.item(), ebm_loss.mean().item(), l2_reg_loss.mean().item(), grad_norm)
-

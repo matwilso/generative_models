@@ -1,8 +1,10 @@
 #generative_models
 
+// TODO: add class condition
+
 Models:
 - Autoregressive
-  - PixelCNN/RNN, Wavenet
+  - PixelCNN/RNN, Wavenet, Transformer. 
 - VAE
 - GAN
 - Flow
