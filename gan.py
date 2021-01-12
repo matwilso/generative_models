@@ -52,18 +52,28 @@ class Generator(nn.Module):
         return x
 
 if __name__ == '__main__':
-    root = './'
+    root = './data'
     train_data = torchvision.datasets.CIFAR10(root, train=True, transform=None, target_transform=None, download=True)
     #test_data  = torchvision.datasets.CIFAR10(root, train=False, transform=None, target_transform=None, download=True)
     #print(len(train_data), len(test_data))
-    disc = Discriminator()
-    gen = Generator()
+    device = 'cuda'
+    disc = Discriminator().to(device)
+    gen = Generator().to(device)
 
     # Setup Adam optimizers for both G and D
     disc_optim = Adam(disc.parameters(), lr=1e-4, betas=(0.5, 0.999))
     gen_optim = Adam(gen.parameters(), lr=1e-4, betas=(0.5, 0.999))
     imgs = (torch.as_tensor(train_data.data[:16], dtype=torch.float32).transpose(1,-1) / 127.5) - 1.0
     #imgs = imgs#.cuda()
+
+    def preproc(x):
+        return (torch.as_tensor(x, dtype=torch.float32).transpose(1,-1) / 127.5) - 1.0
+
+    def sample_batch(bs):
+        N = train_data.data.shape[0]
+        idxs = np.random.randint(0, N, bs)
+        x = train_data.data[idxs]
+        return preproc(x).to(device)
 
     #fixed_noise = torch.randn(64, nz, 1, 1, device=device)
     real_label = 1.
@@ -79,9 +89,10 @@ if __name__ == '__main__':
         # Discriminator
         # real example
         disc_optim.zero_grad()
-        real_disc = disc(imgs)
+        batch = sample_batch(16)
+        real_disc = disc(batch)
         # fake example
-        noise = torch.randn(16, 128)
+        noise = torch.randn(16, 128).to(device)
         fake = gen(noise)
         fake_disc = disc(fake)
         # backward
@@ -101,7 +112,7 @@ if __name__ == '__main__':
 
         if i % 100 == 0:
             pred = export(fake)
-            truth = export(imgs)
+            truth = export(batch)
             img = np.concatenate([truth, np.zeros_like(truth), pred], axis=1)
             plt.imsave('test2.png', img)
             print(i, disc_loss.item())
