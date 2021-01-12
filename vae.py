@@ -32,7 +32,7 @@ class Encoder(nn.Module):
         norm = tdib.Normal(mu, std)
         prior = tdib.Normal(torch.zeros_like(mu), torch.ones_like(std))
         prior_loss = tdib.kl_divergence(norm, prior)
-        return prior_loss.mean(), norm.rsample()
+        return prior_loss.mean(), norm.rsample(), mu
 
 class Decoder(nn.Module):
     def __init__(self):
@@ -54,38 +54,40 @@ class Decoder(nn.Module):
         return x
 
 if __name__ == '__main__':
-    root = './'
+    from utils import preproc, export, sample_batch
+    root = './data'
     train_data = torchvision.datasets.CIFAR10(root, train=True, transform=None, target_transform=None, download=True)
     #test_data  = torchvision.datasets.CIFAR10(root, train=False, transform=None, target_transform=None, download=True)
     #print(len(train_data), len(test_data))
-    encoder = Encoder()#.cuda()
-    decoder = Decoder()#.cuda()
+    device = 'cuda'
+    encoder = Encoder().to(device)
+    decoder = Decoder().to(device)
     optimizer = Adam(chain(encoder.parameters(), decoder.parameters()), lr=3e-4)
     imgs = (torch.as_tensor(train_data.data[:16], dtype=torch.float32).transpose(1,-1) / 127.5) - 1.0
-    imgs = imgs#.cuda()
-
-    def export(img):
-        img = (255 * (img.transpose(1,-1) + 1.0) / 2.0).detach().cpu().numpy().astype(np.uint8)
-        img = img.reshape(-1, 32, 3)
-        return img
-
+    bs = 1024
 
     for i in count():
         optimizer.zero_grad()
-        prior_loss, code = encoder(imgs)
+        batch = sample_batch(train_data, bs).to(device)
+        prior_loss, code, mu = encoder(batch)
         recondist = decoder(code)
 
-        recon_loss = -recondist.log_prob(imgs).mean()
+        recon_loss = -recondist.log_prob(batch).mean()
 
         loss = prior_loss + recon_loss
         loss.backward()
         optimizer.step()
 
-        if i % 100 == 0:
-            pred = export(recondist.mean)
-            truth = export(imgs)
-            img = np.concatenate([truth, np.zeros_like(truth), pred], axis=1)
+        if i % 1000 == 0:
+            reconmu = decoder(mu[:10]).mean
+            reconsamp = decoder(torch.randn(mu[:10].shape).to(device)).mean
+            pred = export(reconmu)
+            sample = export(reconsamp)
+            truth = export(batch[:10])
+            black = np.zeros_like(truth)
+            img = np.concatenate([truth, black, pred, black, sample], axis=1)
             plt.imsave('test.png', img)
-            print(loss.item(), prior_loss.item(), recon_loss.item())
+            print(i, loss.item(), prior_loss.item(), recon_loss.item())
+
 
 

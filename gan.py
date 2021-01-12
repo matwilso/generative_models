@@ -7,6 +7,7 @@ import torch
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
+from utils import sample_batch, preproc, export
 
 # TODO: try out spec norm
 
@@ -66,33 +67,22 @@ if __name__ == '__main__':
     imgs = (torch.as_tensor(train_data.data[:16], dtype=torch.float32).transpose(1,-1) / 127.5) - 1.0
     #imgs = imgs#.cuda()
 
-    def preproc(x):
-        return (torch.as_tensor(x, dtype=torch.float32).transpose(1,-1) / 127.5) - 1.0
-
-    def sample_batch(bs):
-        N = train_data.data.shape[0]
-        idxs = np.random.randint(0, N, bs)
-        x = train_data.data[idxs]
-        return preproc(x).to(device)
+    bs = 256
 
     #fixed_noise = torch.randn(64, nz, 1, 1, device=device)
     real_label = 1.
     fake_label = 0.
 
-    def export(img):
-        img = (255 * (img.transpose(1,-1) + 1.0) / 2.0).detach().cpu().numpy().astype(np.uint8)
-        img = img.reshape(-1, 32, 3)
-        return img
 
     for i in count():
         ## Train with all-real batch
         # Discriminator
         # real example
         disc_optim.zero_grad()
-        batch = sample_batch(16)
+        batch = sample_batch(train_data, bs).to(device)
         real_disc = disc(batch)
         # fake example
-        noise = torch.randn(16, 128).to(device)
+        noise = torch.randn(bs, 128).to(device)
         fake = gen(noise)
         fake_disc = disc(fake)
         # backward
@@ -110,9 +100,9 @@ if __name__ == '__main__':
         gen_loss.backward()
         gen_optim.step()
 
-        if i % 100 == 0:
-            pred = export(fake)
-            truth = export(batch)
+        if i % 1000 == 0:
+            pred = export(fake[:10])
+            truth = export(batch[:10])
             img = np.concatenate([truth, np.zeros_like(truth), pred], axis=1)
             plt.imsave('test2.png', img)
             print(i, disc_loss.item())
