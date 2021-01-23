@@ -19,9 +19,9 @@ class E1(nn.Module):
         super().__init__()
         self.H = H
         self.net = nn.Sequential(
-            *conv(3, 32, bn=H.bn, activ=nn.ReLU()),
-            *conv(32, 64, bn=H.bn, activ=nn.ReLU()),
-            *conv(64, 128, bn=H.bn, activ=nn.ReLU()),
+            *conv(3, 128, bn=H.bn, activ=nn.ReLU()),
+            *conv(128, 256, bn=H.bn, activ=nn.ReLU()),
+            *conv(256, 128, bn=H.bn, activ=nn.ReLU()),
             *conv(128, 2*self.H.z_size, stride=1),
                 )
 
@@ -40,10 +40,10 @@ class D1(nn.Module):
         super().__init__()
         self.H = H
         self.net = nn.Sequential(
-            *deconv(self.H.z_size, 64, bn=H.bn, activ=nn.ReLU()),
-            *deconv(64, 32, bn=H.bn, activ=nn.ReLU()),
-            *deconv(32, 16, bn=H.bn, activ=nn.ReLU()),
-            *deconv(16, 3, ks=4),
+            *deconv(self.H.z_size, 256, bn=H.bn, activ=nn.ReLU()),
+            *deconv(256, 256, bn=H.bn, activ=nn.ReLU()),
+            *deconv(256, 64, bn=H.bn, activ=nn.ReLU()),
+            *deconv(64, 3, ks=4),
             )
 
     def forward(self, x):

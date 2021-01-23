@@ -23,10 +23,11 @@ H.z_size = 128
 H.bn = 0
 H.device = 'cuda'
 H.log_n = 1000
-H.done_n = int(1e5)
-H.b = 1.0
-H.name = './logs/'
+H.done_n = 1e5
+H.b = 0.1
+H.logdir = './logs/'
 H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
+H.lr = 1e-4
 
 def dump_logger(logger, writer, i, H):
     print('='*30)
@@ -49,6 +50,9 @@ def plot_samples(writer, *args):
     writer.add_image('test', img/255.0, i, dataformats='HWC')
 
 if __name__ == '__main__':
+    # TODO: maybe class cond
+    # TODO: use low beta 0.1
+    # TODO: make network bigger
     from utils import CIFAR, MNIST
     import argparse
     parser = argparse.ArgumentParser()
@@ -56,14 +60,14 @@ if __name__ == '__main__':
         parser.add_argument(f'--{key}', type=type(value), default=value)
     H = parser.parse_args()
 
-    writer = SummaryWriter(H.name)
-    logger = dump_logger({}, writer, 0)
+    writer = SummaryWriter(H.logdir)
+    logger = dump_logger({}, writer, 0, H)
 
     ds = CIFAR(H)
     #ds = MNIST(device)
     encoder = E1(H).to(H.device)
     decoder = D1(H).to(H.device)
-    optimizer = Adam(chain(encoder.parameters(), decoder.parameters()), lr=1e-4)
+    optimizer = Adam(chain(encoder.parameters(), decoder.parameters()), lr=H.lr)
 
     for i in count():
         optimizer.zero_grad()
