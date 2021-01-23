@@ -19,10 +19,10 @@ class E1(nn.Module):
         super().__init__()
         self.H = H
         self.net = nn.Sequential(
-            *conv(3, 128, bn=H.bn, activ=nn.ReLU()),
-            *conv(128, 256, bn=H.bn, activ=nn.ReLU()),
-            *conv(256, 128, bn=H.bn, activ=nn.ReLU()),
-            *conv(128, 2*self.H.z_size, stride=1),
+            *conv(3, 512, bn=H.bn, activ=nn.ReLU()),
+            *conv(512, 512, bn=H.bn, activ=nn.ReLU()),
+            *conv(512, 512, bn=H.bn, activ=nn.ReLU()),
+            *conv(512, 2*self.H.z_size, stride=1),
                 )
 
     def forward(self, x):
@@ -40,13 +40,18 @@ class D1(nn.Module):
         super().__init__()
         self.H = H
         self.net = nn.Sequential(
-            *deconv(self.H.z_size, 256, bn=H.bn, activ=nn.ReLU()),
-            *deconv(256, 256, bn=H.bn, activ=nn.ReLU()),
-            *deconv(256, 64, bn=H.bn, activ=nn.ReLU()),
+            *deconv(self.H.z_size + 10*self.H.class_cond, 512, bn=H.bn, activ=nn.ReLU()),
+            *deconv(512, 512, bn=H.bn, activ=nn.ReLU()),
+            *deconv(512, 64, bn=H.bn, activ=nn.ReLU()),
             *deconv(64, 3, ks=4),
             )
 
-    def forward(self, x):
+    def forward(self, x, cc=None):
+        if cc is not None:
+            x = torch.cat([x, cc], -1)
         x = self.net(x[...,None,None])
         x = tdib.Normal(x, 1)
         return x
+
+
+

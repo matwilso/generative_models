@@ -27,7 +27,8 @@ H.done_n = 1e5
 H.b = 0.1
 H.logdir = './logs/'
 H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
-H.lr = 1e-4
+H.lr = 3e-4
+H.class_cond = 0
 
 def dump_logger(logger, writer, i, H):
     print('='*30)
@@ -50,7 +51,6 @@ def plot_samples(writer, *args):
     writer.add_image('test', img/255.0, i, dataformats='HWC')
 
 if __name__ == '__main__':
-    # TODO: maybe class cond
     # TODO: use low beta 0.1
     # TODO: make network bigger
     from utils import CIFAR, MNIST
@@ -72,10 +72,14 @@ if __name__ == '__main__':
     for i in count():
         optimizer.zero_grad()
         batch = ds.sample_batch(H.bs)
-        prior_loss, code, mu = encoder(batch)
-        recondist = decoder(code)
+        prior_loss, code, mu = encoder(batch['image'])
+        if H.class_cond:
+            class_c = torch.nn.functional.one_hot(batch['label'], 10).float()
+            recondist = decoder(code, class_c)
+        else:
+            recondist = decoder(code)
 
-        recon_loss = -recondist.log_prob(batch)
+        recon_loss = -recondist.log_prob(batch['image'])
         loss = (H.b*prior_loss + recon_loss.mean((-1, -2, -3))).mean()
         loss.backward()
         optimizer.step()
@@ -87,9 +91,13 @@ if __name__ == '__main__':
             encoder.eval()
             decoder.eval()
             logger = dump_logger(logger, writer, i, H)
-            reconmu = decoder(mu[:10]).mean
-            reconsamp = decoder(torch.randn(mu[:10].shape).to(H.device)).mean
-            plot_samples(writer, batch[:10], reconmu, reconsamp)
+            if H.class_cond:
+                reconmu = decoder(mu[:10], class_c[:10]).mean
+                reconsamp = decoder(torch.randn(mu[:10].shape).to(H.device), class_c[:10]).mean
+            else:
+                reconmu = decoder(mu[:10]).mean
+                reconsamp = decoder(torch.randn(mu[:10].shape).to(H.device)).mean
+            plot_samples(writer, batch['image'][:10], reconmu, reconsamp)
             writer.flush()
             encoder.train()
             decoder.train()

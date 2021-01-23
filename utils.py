@@ -25,18 +25,21 @@ class CIFAR(Dataset):
         self.H = H
         root = './data'
         self.train_data = torchvision.datasets.CIFAR10(root, train=True, transform=None, target_transform=None, download=True)
+        self.train_data.targets = np.array(self.train_data.targets)
         #self.test_data  = torchvision.datasets.CIFAR10(root, train=False, transform=None, target_transform=None, download=True)
         self.input_shape = [32, 32, 3]
 
     def sample_batch(self, bs, basic=False):
         N = self.train_data.data.shape[0]
         if basic:
-            x = self.train_data.data[:bs]
-            return preproc(x).to(self.H.device)
+            image = self.train_data.data[:bs]
+            label = self.train_data.targets[:bs]
+            return {'image': preproc(image).to(self.H.device), 'label': torch.as_tensor(x, dtype=torch.long).to(self.H.device)}
         else:
             idxs = np.random.randint(0, N, bs)
-            x = self.train_data.data[idxs]
-            return preproc(x).to(self.H.device)
+            image = self.train_data.data[idxs]
+            label = self.train_data.targets[idxs]
+            return {'image': preproc(image).to(self.H.device), 'label': torch.as_tensor(label, dtype=torch.long).to(self.H.device)}
 
 class MNIST(Dataset):
     def __init__(self, H):
