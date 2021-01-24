@@ -14,7 +14,6 @@ import torch.nn.functional as F
 
 # TODO: VQ VAE may be worth doing. but maybe as a separate repo.
 from nets import E1, D1
-import argparse
 import utils
 
 H = utils.AttrDict()
@@ -23,83 +22,61 @@ H.z_size = 128
 H.bn = 0
 H.device = 'cuda'
 H.log_n = 1000
-H.done_n = 1e5
+H.done_n = 1e7
 H.b = 0.1
 H.logdir = './logs/'
 H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
 H.lr = 3e-4
 H.class_cond = 0
 
-def dump_logger(logger, writer, i, H):
-    print('='*30)
-    print(i)
-    for key in logger:
-        val = np.mean(logger[key])
-        writer.add_scalar(key, val, i)
-        print(key, val)
-    print(H.full_cmd)
-    print('='*30)
-    return defaultdict(lambda: [])
-
-def plot_samples(writer, *args):
-    l = []
-    for a in args:
-        upr = utils.unproc(a)
-        l += [upr, np.zeros_like(upr)]
-    img = np.concatenate(l, axis=1)
-    plt.imsave('test.png', img)
-    writer.add_image('test', img/255.0, i, dataformats='HWC')
-
 if __name__ == '__main__':
-    # TODO: use low beta 0.1
-    # TODO: make network bigger
-    from utils import CIFAR, MNIST
-    import argparse
-    parser = argparse.ArgumentParser()
-    for key, value in H.items():
-        parser.add_argument(f'--{key}', type=type(value), default=value)
-    H = parser.parse_args()
+  # TODO: use low beta 0.1
+  # TODO: make network bigger
+  from utils import CIFAR, MNIST
+  from net2 import ResNet18Enc, ResNet18Dec
+  H = utils.parseH(H)
+  writer = SummaryWriter(H.logdir)
+  logger = utils.dump_logger({}, writer, 0, H)
 
-    writer = SummaryWriter(H.logdir)
-    logger = dump_logger({}, writer, 0, H)
+  ds = CIFAR(H)
+  #ds = MNIST(device)
+  encoder = E1(H).to(H.device)
+  decoder = D1(H).to(H.device)
+  #encoder = ResNet18Enc(H=H).to(H.device)
+  #decoder = ResNet18Dec(H=H).to(H.device)
+  optimizer = Adam(chain(encoder.parameters(), decoder.parameters()), lr=H.lr)
 
-    ds = CIFAR(H)
-    #ds = MNIST(device)
-    encoder = E1(H).to(H.device)
-    decoder = D1(H).to(H.device)
-    optimizer = Adam(chain(encoder.parameters(), decoder.parameters()), lr=H.lr)
+  for i in count():
+    optimizer.zero_grad()
+    batch = ds.sample_batch(H.bs)
+    prior_loss, code, mu = encoder(batch['image'])
+    if H.class_cond:
+      class_c = torch.nn.functional.one_hot(batch['label'], 10).float()
+      recondist = decoder(code, class_c)
+    else:
+      recondist = decoder(code)
 
-    for i in count():
-        optimizer.zero_grad()
-        batch = ds.sample_batch(H.bs)
-        prior_loss, code, mu = encoder(batch['image'])
-        if H.class_cond:
-            class_c = torch.nn.functional.one_hot(batch['label'], 10).float()
-            recondist = decoder(code, class_c)
-        else:
-            recondist = decoder(code)
+    recon_loss = -recondist.log_prob(batch['image'])
+    loss = (H.b * prior_loss + recon_loss.mean((-1, -2, -3))).mean()
+    loss.backward()
+    optimizer.step()
+    logger['total_loss'] += [loss.detach().cpu()]
+    logger['prior_loss'] += [prior_loss.mean().detach().cpu()]
+    logger['recon_loss'] += [recon_loss.mean().detach().cpu()]
 
-        recon_loss = -recondist.log_prob(batch['image'])
-        loss = (H.b*prior_loss + recon_loss.mean((-1, -2, -3))).mean()
-        loss.backward()
-        optimizer.step()
-        logger['total_loss'] += [loss.detach().cpu()]
-        logger['prior_loss'] += [prior_loss.mean().detach().cpu()]
-        logger['recon_loss'] += [recon_loss.mean().detach().cpu()]
-
-        if i % H.log_n == 0:
-            encoder.eval()
-            decoder.eval()
-            logger = dump_logger(logger, writer, i, H)
-            if H.class_cond:
-                reconmu = decoder(mu[:10], class_c[:10]).mean
-                reconsamp = decoder(torch.randn(mu[:10].shape).to(H.device), class_c[:10]).mean
-            else:
-                reconmu = decoder(mu[:10]).mean
-                reconsamp = decoder(torch.randn(mu[:10].shape).to(H.device)).mean
-            plot_samples(writer, batch['image'][:10], reconmu, reconsamp)
-            writer.flush()
-            encoder.train()
-            decoder.train()
-        if i >= H.done_n:
-            break
+    if i % H.log_n == 0:
+      encoder.eval()
+      decoder.eval()
+      logger = utils.dump_logger(logger, writer, i, H)
+      if H.class_cond:
+        reconmu = decoder(mu[:10], class_c[:10]).mean
+        reconsamp = decoder(torch.randn(mu[:10].shape).to(H.device), class_c[:10]).mean
+      else:
+        reconmu = decoder(mu[:10]).mean
+        reconsamp = decoder(torch.randn(mu[:10].shape).to(H.device)).mean
+      utils.plot_samples(writer, i, batch['image'][:10], reconmu, reconsamp)
+      writer.flush()
+      encoder.train()
+      decoder.train()
+    if i >= H.done_n:
+      break
