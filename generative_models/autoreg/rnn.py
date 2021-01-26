@@ -27,11 +27,14 @@ H.done_n = 1e7
 H.b = 0.1
 H.logdir = './logs/'
 H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
-H.lr = 3e-4
+H.lr = 1e-4
 H.class_cond = 0
-H.hidden_size = 256
+H.hidden_size = 512
 H.append_loc = 1
 H.overfit_batch = 0
+
+# TODO: record bits/dim
+# TODO: try interpolation
 
 def append_location(x):
   """add xy coords to every pixel"""

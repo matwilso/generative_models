@@ -1,9 +1,11 @@
+import pathlib
 import argparse
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import torchvision
 import torch
 import numpy as np
+import yaml
 
 def parseH(H):
   parser = argparse.ArgumentParser()
@@ -12,15 +14,12 @@ def parseH(H):
   H = parser.parse_args()
   return H
 
-
 class AttrDict(dict):
   __setattr__ = dict.__setitem__
   __getattr__ = dict.__getitem__
 
-
 def preproc(x):
   return (x / 127.5) - 1.0
-
 
 #def unproc(img):
 #  img = (255 * (img.transpose(1, -1) + 1.0) / 2.0).detach().cpu().numpy().astype(np.uint8)
@@ -41,6 +40,8 @@ def dump_logger(logger, writer, i, H):
     writer.add_scalar(key, val, i)
     print(key, val)
   print(H.full_cmd)
+  with open(pathlib.Path(H.logdir) / 'hps.yaml', 'w') as f:
+    yaml.dump(H, f)
   print('=' * 30)
   return defaultdict(lambda: [])
 
