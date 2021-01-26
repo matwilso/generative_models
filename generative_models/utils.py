@@ -5,7 +5,6 @@ import torchvision
 import torch
 import numpy as np
 
-
 def parseH(H):
   parser = argparse.ArgumentParser()
   for key, value in H.items():
@@ -20,12 +19,17 @@ class AttrDict(dict):
 
 
 def preproc(x):
-  return (torch.as_tensor(x, dtype=torch.float32).transpose(1, -1) / 127.5) - 1.0
+  return (x / 127.5) - 1.0
 
+
+#def unproc(img):
+#  img = (255 * (img.transpose(1, -1) + 1.0) / 2.0).detach().cpu().numpy().astype(np.uint8)
+#  img = img.reshape(-1, 32, 3)
+#  return img
 
 def unproc(img):
-  img = (255 * (img.transpose(1, -1) + 1.0) / 2.0).detach().cpu().numpy().astype(np.uint8)
-  img = img.reshape(-1, 32, 3)
+  img = img.transpose(1, -1).detach().cpu().numpy().astype(np.uint8)
+  img = img.reshape(-1, 28, 1)
   return img
 
 
@@ -44,31 +48,30 @@ def dump_logger(logger, writer, i, H):
 def plot_samples(writer, i, *args):
   l = []
   for a in args:
-    upr = unproc(a)
+    upr = torch.reshape(a, [10*28, 28]).cpu().detach().numpy()
+    #upr = unproc(a)
+    #upr = a.detach().cpu().transpose(1, -1).numpy()
     l += [upr, np.zeros_like(upr)]
-  img = np.concatenate(l, axis=1)
+  img = np.concatenate(l, axis=-1)
   plt.imsave('test.png', img)
-  writer.add_image('test', img / 255.0, i, dataformats='HWC')
+  writer.add_image('test', img[...,None], i, dataformats='HWC')
 
 # TODO: make this a total data handler. load, device, everything
-
 
 class Dataset:
   pass
 
-
 class CIFAR(Dataset):
   def __init__(self, H):
     self.H = H
-    root = './data'
+    root = '../data'
     self.train_data = torchvision.datasets.CIFAR10(root, train=True, transform=None, target_transform=None, download=True)
     self.train_data.targets = np.array(self.train_data.targets)
     #self.test_data  = torchvision.datasets.CIFAR10(root, train=False, transform=None, target_transform=None, download=True)
-    self.input_shape = [32, 32, 3]
 
-  def sample_batch(self, bs, basic=False):
+  def sample_batch(self, bs, overfit_batch=False):
     N = self.train_data.data.shape[0]
-    if basic:
+    if overfit_batch:
       image = self.train_data.data[:bs]
       label = self.train_data.targets[:bs]
       return {'image': preproc(image).to(self.H.device), 'label': torch.as_tensor(x, dtype=torch.long).to(self.H.device)}
@@ -78,17 +81,21 @@ class CIFAR(Dataset):
       label = self.train_data.targets[idxs]
       return {'image': preproc(image).to(self.H.device), 'label': torch.as_tensor(label, dtype=torch.long).to(self.H.device)}
 
-
 class MNIST(Dataset):
   def __init__(self, H):
     self.H = H
-    root = './data'
+    root = '../data'
     self.train_data = torchvision.datasets.MNIST(root, train=True, download=True)
-    self.input_shape = [28, 28, 1]
 
-  def sample_batch(train_data, bs):
-    import ipdb; ipdb.set_trace()
-    N = train_data.data.shape[0]
-    idxs = np.random.randint(0, N, bs)
-    x = train_data.data[idxs]
-    return preproc(x).to(self.H.device)
+  def sample_batch(self, bs, overfit_batch=False):
+    N = self.train_data.data.shape[0]
+    if overfit_batch:
+      image = self.train_data.data[:bs]
+      label = self.train_data.targets[:bs]
+      return {'image': (image[:,None] / 255.0).to(self.H.device), 'label': label.to(self.H.device)}
+    else:
+      idxs = np.random.randint(0, N, bs)
+      image = self.train_data.data[idxs]
+      label = self.train_data.targets[idxs]
+      return {'image': (image[:,None] / 255.0).to(self.H.device), 'label': label.to(self.H.device)}
+

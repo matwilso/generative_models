@@ -23,8 +23,9 @@ H.done_n = 1e7
 H.b = 0.1
 H.logdir = './logs/'
 H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
-H.lr = 3e-4
+H.lr = 1e-4
 H.class_cond = 0
+H.reg = 1e-4
 
 # TODO: try out spec norm
 
@@ -32,10 +33,10 @@ class Discriminator(nn.Module):
   def __init__(self, H):
     super().__init__()
     self.c1 = nn.Conv2d(3, 64, 3, stride=2)
-    self.c2 = nn.Conv2d(64, 256, 3, stride=2)
-    self.c3 = nn.Conv2d(256, 256, 3, stride=2)
-    self.c4 = nn.Conv2d(256, 256, 3, stride=1)
-    self.f1 = nn.Linear(256, 1)
+    self.c2 = nn.Conv2d(64, 512, 3, stride=2)
+    self.c3 = nn.Conv2d(512, 512, 3, stride=2)
+    self.c4 = nn.Conv2d(512, 512, 3, stride=1)
+    self.f1 = nn.Linear(512, 1)
 
   def forward(self, x):
     x = self.c1(x)
@@ -55,9 +56,9 @@ class Discriminator(nn.Module):
 class Generator(nn.Module):
   def __init__(self, H):
     super().__init__()
-    self.d1 = nn.ConvTranspose2d(H.z_size, 256, 3, stride=2)
-    self.d2 = nn.ConvTranspose2d(256, 256, 3, stride=2)
-    self.d3 = nn.ConvTranspose2d(256, 64, 3, stride=2)
+    self.d1 = nn.ConvTranspose2d(H.z_size, 512, 3, stride=2)
+    self.d2 = nn.ConvTranspose2d(512, 512, 3, stride=2)
+    self.d3 = nn.ConvTranspose2d(512, 64, 3, stride=2)
     self.d4 = nn.ConvTranspose2d(64, 3, 4, stride=2)
 
   def forward(self, x):
@@ -101,7 +102,7 @@ if __name__ == '__main__':
     fake_disc = disc(fake)
     # backward
     disc_loss = (real_disc - fake_disc).mean()
-    disc_loss += 0.0001 * (real_disc**2 + fake_disc**2).mean()
+    disc_loss += H.reg * (real_disc**2 + fake_disc**2).mean()
     #disc_loss = real_disc.mean() - fake_disc.mean()
     disc_loss.backward()
     disc_optim.step()
