@@ -15,7 +15,7 @@ import torch.nn.functional as F
 # TODO: VQ VAE may be worth doing. but maybe as a separate repo.
 import generative_models as gms
 from generative_models.nets import E1, D1
-import utils
+from generative_models import utils
 
 H = utils.AttrDict()
 H.bs = 32
@@ -101,7 +101,6 @@ if __name__ == '__main__':
   # TODO: use low beta 0.1
   # TODO: make network bigger
   from generative_models.utils import MNIST
-  from generative_models import utils
   H = utils.parseH(H)
   writer = SummaryWriter(H.logdir)
   logger = utils.dump_logger({}, writer, 0, H)
