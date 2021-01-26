@@ -87,16 +87,20 @@ class MNIST(Dataset):
     self.H = H
     root = '../data'
     self.train_data = torchvision.datasets.MNIST(root, train=True, download=True)
+    self.test_data = torchvision.datasets.MNIST(root, train=False, download=True)
 
-  def sample_batch(self, bs, overfit_batch=False):
-    N = self.train_data.data.shape[0]
+  def sample_batch(self, bs, overfit_batch=False, test=False):
+    data = self.train_data if not test else self.test_data
+    N = data.data.shape[0]
     if overfit_batch:
-      image = self.train_data.data[:bs]
-      label = self.train_data.targets[:bs]
+      image = data.data[:bs]
+      label = data.targets[:bs]
       return {'image': (image[:,None] / 255.0).to(self.H.device), 'label': label.to(self.H.device)}
     else:
       idxs = np.random.randint(0, N, bs)
-      image = self.train_data.data[idxs]
-      label = self.train_data.targets[idxs]
+      image = data.data[idxs]
+      label = data.targets[idxs]
       return {'image': (image[:,None] / 255.0).to(self.H.device), 'label': label.to(self.H.device)}
+
+
 

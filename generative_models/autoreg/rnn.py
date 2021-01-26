@@ -119,6 +119,9 @@ if __name__ == '__main__':
 
     if i % H.log_n == 0:
       network.eval()
+      test_batch = ds.sample_batch(H.bs, test=True)
+      test_loss = network.nll(test_batch).detach().cpu().numpy()
+      logger['test:bits/dim'] = test_loss / np.log(2)
       logger = utils.dump_logger(logger, writer, i, H)
       samples = network.sample(10)
       utils.plot_samples(writer, i, batch['image'][:10], samples)
@@ -126,3 +129,5 @@ if __name__ == '__main__':
       network.train()
     if i >= H.done_n:
       break
+
+
