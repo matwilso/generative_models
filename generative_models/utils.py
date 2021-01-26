@@ -1,4 +1,5 @@
 import pathlib
+from torchvision import transforms
 import argparse
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -7,6 +8,7 @@ import torch
 import numpy as np
 import yaml
 
+
 def parseH(H):
   parser = argparse.ArgumentParser()
   for key, value in H.items():
@@ -14,17 +16,20 @@ def parseH(H):
   H = parser.parse_args()
   return H
 
+
 class AttrDict(dict):
   __setattr__ = dict.__setitem__
   __getattr__ = dict.__getitem__
 
+
 def preproc(x):
   return (x / 127.5) - 1.0
 
-#def unproc(img):
+# def unproc(img):
 #  img = (255 * (img.transpose(1, -1) + 1.0) / 2.0).detach().cpu().numpy().astype(np.uint8)
 #  img = img.reshape(-1, 32, 3)
 #  return img
+
 
 def unproc(img):
   img = img.transpose(1, -1).detach().cpu().numpy().astype(np.uint8)
@@ -49,18 +54,20 @@ def dump_logger(logger, writer, i, H):
 def plot_samples(writer, i, *args):
   l = []
   for a in args:
-    upr = torch.reshape(a, [10*28, 28]).cpu().detach().numpy()
+    upr = torch.reshape(a, [10 * 28, 28]).cpu().detach().numpy()
     #upr = unproc(a)
     #upr = a.detach().cpu().transpose(1, -1).numpy()
     l += [upr, np.zeros_like(upr)]
   img = np.concatenate(l, axis=-1)
   plt.imsave('test.png', img)
-  writer.add_image('test', img[...,None], i, dataformats='HWC')
+  writer.add_image('test', img[..., None], i, dataformats='HWC')
 
 # TODO: make this a total data handler. load, device, everything
 
+
 class Dataset:
   pass
+
 
 class CIFAR(Dataset):
   def __init__(self, H):
@@ -82,8 +89,10 @@ class CIFAR(Dataset):
       label = self.train_data.targets[idxs]
       return {'image': preproc(image).to(self.H.device), 'label': torch.as_tensor(label, dtype=torch.long).to(self.H.device)}
 
+
 class MNIST(Dataset):
   def __init__(self, H):
+
     self.H = H
     root = '../data'
     self.train_data = torchvision.datasets.MNIST(root, train=True, download=True)
@@ -95,12 +104,32 @@ class MNIST(Dataset):
     if overfit_batch:
       image = data.data[:bs]
       label = data.targets[:bs]
-      return {'image': (image[:,None] / 255.0).to(self.H.device), 'label': label.to(self.H.device)}
+      image = (image[:, None] / 255.0)
+      image[image > 0.5] = 1.0
+      image[image < 0.5] = 0.0
+      return {'image': image.to(self.H.device), 'label': label.to(self.H.device)}
     else:
       idxs = np.random.randint(0, N, bs)
       image = data.data[idxs]
       label = data.targets[idxs]
-      return {'image': (image[:,None] / 255.0).to(self.H.device), 'label': label.to(self.H.device)}
+      image = (image[:, None] / 255.0)
+      image[image > 0.5] = 1.0
+      image[image < 0.5] = 0.0
+      return {'image': image.to(self.H.device), 'label': label.to(self.H.device)}
 
 
+def load_mnist():
+  from torchvision import transforms
+  from torchvision.datasets import MNIST
+  import torch.utils.data as data
 
+  transform = transforms.Compose([
+      transforms.ToTensor(),
+      lambda x: (x > 0.5).float()
+  ])
+  train_dset = MNIST('data', transform=transform, train=True, download=True)
+  test_dset = MNIST('data', transform=transform, train=False, download=True)
+
+  train_loader = data.DataLoader(train_dset, batch_size=128, shuffle=True, pin_memory=True, num_workers=2)
+  test_loader = data.DataLoader(test_dset, batch_size=128, shuffle=True, pin_memory=True, num_workers=2)
+  return train_loader, test_loader

@@ -23,7 +23,7 @@ H.z_size = 128
 H.bn = 0
 H.device = 'cuda'
 H.log_n = 1000
-H.done_n = 1e7
+H.done_n = 20
 H.b = 0.1
 H.logdir = './logs/'
 H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
@@ -56,8 +56,9 @@ class RNN(nn.Module):
     batch_size = x.shape[0]
     x_inp = append_location(x) if self.H.append_loc else x
 
-    # Shift input by one to the right
+    # make LSTM operate over 1 pixel at a time.
     x_inp = x_inp.permute(0, 2, 3, 1).contiguous().view(batch_size, self.canvas_size, self.input_channels)
+    # align it so we are predicting the next pixel. start with dummy first and feed everything put last real pixel.
     x_inp = torch.cat((torch.zeros(batch_size, 1, self.input_channels).to(self.H.device), x_inp[:, :-1]), dim=1)
 
     h0 = torch.zeros(1, x_inp.size(0), self.H.hidden_size).to(self.H.device)
@@ -100,34 +101,35 @@ class RNN(nn.Module):
 if __name__ == '__main__':
   # TODO: use low beta 0.1
   # TODO: make network bigger
-  from generative_models.utils import MNIST
+  from generative_models.utils import load_mnist
   H = utils.parseH(H)
   writer = SummaryWriter(H.logdir)
   logger = utils.dump_logger({}, writer, 0, H)
-  ds = MNIST(H)
-  network = RNN(H).to(H.device)
-
-  optimizer = Adam(network.parameters(), lr=H.lr)
+  train_ds, test_ds = load_mnist()
+  import ipdb; ipdb.set_trace()
+  model = RNN(H).to(H.device)
+  optimizer = Adam(model.parameters(), lr=H.lr)
 
   for i in count():
-    optimizer.zero_grad()
-    batch = ds.sample_batch(H.bs, overfit_batch=H.overfit_batch)
-    loss = network.nll(batch)
-    loss.backward()
-    optimizer.step()
-    logger['loss'] += [loss.detach().cpu()]
+    for batch in train_ds:
+      import ipdb; ipdb.set_trace()
+      optimizer.zero_grad()
+      batch = ds.sample_batch(H.bs, overfit_batch=H.overfit_batch)
+      loss = model.nll(batch)
+      loss.backward()
+      optimizer.step()
+      logger['loss'] += [loss.detach().cpu()]
 
-    if i % H.log_n == 0:
-      network.eval()
-      test_batch = ds.sample_batch(H.bs, test=True)
-      test_loss = network.nll(test_batch).detach().cpu().numpy()
-      logger['test:bits/dim'] = test_loss / np.log(2)
-      logger = utils.dump_logger(logger, writer, i, H)
-      samples = network.sample(10)
-      utils.plot_samples(writer, i, batch['image'][:10], samples)
-      writer.flush()
-      network.train()
+    model.eval()
+    total_loss = 0
+    with torch.no_grad():
+      for batch in test_ds:
+        import ipdb; ipdb.set_trace()
+    #logger['test:bits/dim'] = test_loss / np.log(2)
+    logger = utils.dump_logger(logger, writer, i, H)
+    samples = model.sample(10)
+    utils.plot_samples(writer, i, batch['image'][:10], samples)
+    writer.flush()
+    model.train()
     if i >= H.done_n:
       break
-
-
