@@ -9,8 +9,8 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 
 # Package meta-data.
-NAME = 'generative_models'
-DESCRIPTION = 'generative_models code'
+NAME = 'gms'
+DESCRIPTION = 'gms code'
 URL = 'anon'
 EMAIL = 'anon'
 AUTHOR = 'anon'
