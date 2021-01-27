@@ -8,12 +8,32 @@ What I do beyond that course is add extra notes in my own
 words describing how the different things work. I also provide code in
 a consistent format and easily modifiable and runnable, with nice plots
 so you can study the behavior of these.
+I thought I have pretty good understanding and notes of these and their specifics.
 
 This is one repo that is easy to parse and provides a common way to look at many generative models.
 
 Mainly this is for my own learning, but you may find it valuable.
 
+One way you may is by going through and dropping in on the code and seeing what it does.
+
+This is basically trying to understand all generative models.
+And playing with the code and going through it all seems the best way to really understand it.
+If I didn't write the code, I need to understand the decision behind every single line.
+And I have commented anything that seemed non-obvious to me.
+
 My autoregressives is pretty thorough, heavily inspired by the great USL course.
+
+
+You should be able to clone this and run it with minimal effort.
+I've listed all dependencies and how to install then.
+If you have trouble, do let me know.
+
+This ids 
+
+It's nice to see all these separate methods in a single good framework. 
+
+[individual lectures]
+[lecture that compares trade-offs between everything. and i might summarize it here]
 
 // TODO: add class condition
 // TODO: switch to MNIST
