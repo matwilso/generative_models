@@ -62,6 +62,7 @@ def plot_samples(writer, i, *args):
   plt.imsave('test.png', img)
   writer.add_image('test', img[..., None], i, dataformats='HWC')
 
+
 # TODO: make this a total data handler. load, device, everything
 
 
@@ -118,7 +119,7 @@ class MNIST(Dataset):
       return {'image': image.to(self.H.device), 'label': label.to(self.H.device)}
 
 
-def load_mnist():
+def load_mnist(bs):
   from torchvision import transforms
   from torchvision.datasets import MNIST
   import torch.utils.data as data
@@ -130,6 +131,6 @@ def load_mnist():
   train_dset = MNIST('data', transform=transform, train=True, download=True)
   test_dset = MNIST('data', transform=transform, train=False, download=True)
 
-  train_loader = data.DataLoader(train_dset, batch_size=128, shuffle=True, pin_memory=True, num_workers=2)
-  test_loader = data.DataLoader(test_dset, batch_size=128, shuffle=True, pin_memory=True, num_workers=2)
+  train_loader = data.DataLoader(train_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2)
+  test_loader = data.DataLoader(test_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2)
   return train_loader, test_loader
