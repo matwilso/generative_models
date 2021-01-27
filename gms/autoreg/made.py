@@ -170,7 +170,7 @@ if __name__ == '__main__':
         avg_loss = total_loss / len(test_ds.dataset)
       logger['test/bits_per_dim'] = avg_loss.item() / np.log(2)
     samples, gen = model.sample(10)
-    writer.add_video('testx', gen, i, fps=60)
+    writer.add_video('sampling_process', gen, i, fps=60)
     utils.plot_samples(writer, i, batch[0][:10], samples)
     writer.flush()
     model.train()
