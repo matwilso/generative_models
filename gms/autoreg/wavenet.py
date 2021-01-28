@@ -91,7 +91,11 @@ class Wavenet(nn.Module):
     layer_size = 9  # Largest dilation is 512 (2**9)
     stack_size = 1
     self.causal = DilatedCausalConv1d('A', in_channels, res_channels, dilation=1)
-    self.res_stack = nn.Sequential(*[ResidualBlock(res_channels, 2 ** i) for i in range(layer_size)])
+    if self.use_resblock:
+      self.stack = nn.Sequential(*[ResidualBlock(res_channels, 2 ** i) for i in range(layer_size)])
+    else:
+      self.stack = nn.Sequential(*[DilatedCausalConv1d('B', res_channels, res_channels, 2 ** i) for i in range(layer_size)])
+
     self.out_conv = nn.Conv1d(res_channels, out_channels, 1)
     self.H = H
 
@@ -100,7 +104,7 @@ class Wavenet(nn.Module):
     x = append_location(x)
     output = x.view(batch_size, -1, 784)
     output = self.causal(output)
-    output = self.res_stack(output)
+    output = self.stack(output)
     output = self.out_conv(output)
     return output.view(batch_size, 1, 28, 28)
 

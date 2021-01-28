@@ -27,6 +27,17 @@ And since the network is masked, pixel24 never gets freaked out that the rest of
 Even though this image is OOD, pixel24 doesn't see this. As long as pixel0-23 do their jobs, things will
 work out.
 
+
+If these ever seem confusing, just remember that the goal is to make sure you can never look at
+something that is generated after you. All design choices are to enforce that and to help it train better.
+If you have these constraints, then you can think how you would have designed it in the first place.
+
+There is some quote about this guy at a EE conference who showed a circuit design. Nobody could tell what it did.
+But then if the crowd was asked to design something that solved the same problem, they basically came up with the same choices.
+
+Who said this.
+
+
 ## MADE
 specific autoencoder idea
 
@@ -66,11 +77,15 @@ This is specifically how you do it:
 The first layer can't see itself, so you need the 2 pad.
 And then you can gradually step up the receptive field with dilation.
 
+
+Add image of the block. For extra complexity.
+https://arxiv.org/pdf/1609.03499.pdf
+
 ## PixelCNN
 
-I still need to dig into this.
-Gonna take some work to figure out how the conv masking works.
-But seems doable.
+This is basically the exact same idea as in Wavenet, but just the masking is different.
+
+
 
 ## Transformer
 
