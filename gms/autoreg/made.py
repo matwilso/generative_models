@@ -35,12 +35,10 @@ H.overfit_batch = 0
 # TODO: record bits/dim
 # TODO: try interpolation
 
-
 def append_location(x):
   """add xy coords to every pixel"""
   XY = torch.stack(torch.meshgrid(torch.linspace(0, 1, x.shape[-2]), torch.linspace(0, 1, x.shape[-1])), 0)
   return torch.cat([x, XY[None].repeat_interleave(x.shape[0], 0).to(x.device)], 1)
-
 
 class MaskedLinear(nn.Linear):
   """ same as Linear except has a configurable mask on the weights """
@@ -54,7 +52,6 @@ class MaskedLinear(nn.Linear):
 
   def forward(self, input):
     return F.linear(input, self.mask * self.weight, self.bias)
-
 
 class MADE(nn.Module):
   def __init__(self, H):

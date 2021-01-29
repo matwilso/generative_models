@@ -99,3 +99,10 @@ You will still need to run step-by-step forward passes to generate.
 One difference is that you don't mask out the weights, you mask out the attention.
 So in the softmax, you just set those elements to -inf.
 
+
+
+
+
+## extra
+
+Autoregressive models seem pretty well-suited for resnets. Since you tend to persist the shape, it's easy.

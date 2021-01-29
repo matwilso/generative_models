@@ -32,6 +32,11 @@ H.class_cond = 0
 H.hidden_size = 512
 H.append_loc = 1
 H.overfit_batch = 0
+H.n_filters = 64
+H.n_layers = 5
+H.kernel_size = 7
+H.use_resblock = 0
+
 
 class MaskConv2d(nn.Conv2d):
   def __init__(self, mask_type, *args, **kwargs):
@@ -84,24 +89,24 @@ class LayerNorm(nn.LayerNorm):
     return x.permute(0, 3, 1, 2).contiguous()
 
 class PixelCNN(nn.Module):
-  def __init__(self, H, n_filters=64, kernel_size=7, n_layers=5, use_resblock=False):
+  def __init__(self, H):
     super().__init__()
-    assert n_layers >= 2
+    assert H.n_layers >= 2
     self.H = H
     input_shape = [1, 28, 28]
     n_channels = input_shape[0]
 
-    if use_resblock:
-      def block_init(): return ResBlock(n_filters)
+    if H.use_resblock:
+      def block_init(): return ResBlock(H.n_filters)
     else:
-      def block_init(): return MaskConv2d('B', n_filters, n_filters, kernel_size=kernel_size, padding=kernel_size // 2)
+      def block_init(): return MaskConv2d('B', H.n_filters, H.n_filters, kernel_size=H.kernel_size, padding=H.kernel_size // 2)
 
-    model = nn.ModuleList([MaskConv2d('A', n_channels, n_filters, kernel_size=kernel_size, padding=kernel_size // 2)])
-    for _ in range(n_layers):
-      model.append(LayerNorm(n_filters))
+    model = nn.ModuleList([MaskConv2d('A', n_channels, H.n_filters, kernel_size=H.kernel_size, padding=H.kernel_size // 2)])
+    for _ in range(H.n_layers):
+      model.append(LayerNorm(H.n_filters))
       model.extend([nn.ReLU(), block_init()])
-    model.extend([nn.ReLU(), MaskConv2d('B', n_filters, n_filters, 1)])
-    model.extend([nn.ReLU(), MaskConv2d('B', n_filters, n_channels, 1)])
+    model.extend([nn.ReLU(), MaskConv2d('B', H.n_filters, H.n_filters, 1)])
+    model.extend([nn.ReLU(), MaskConv2d('B', H.n_filters, n_channels, 1)])
     self.net = model
     self.input_shape = input_shape
     self.n_channels = n_channels

@@ -32,6 +32,12 @@ H.hidden_size = 512
 H.append_loc = 1
 H.overfit_batch = 0
 
+
+H.n_layer = 1
+H.n_head = 4
+H.n_embed = 128
+H.block_size = 28*28
+
 # TODO: record bits/dim
 # TODO: try interpolation
 # TODO: barebon, no residual block version
@@ -47,18 +53,16 @@ class CausalSelfAttention(nn.Module):
   It is possible to use torch.nn.MultiheadAttention here but I am including an
   explicit implementation here to show that there is nothing too scary here.
   """
+
   def __init__(self, H):
     super().__init__()
-    assert H.n_embd % H.n_head == 0
+    assert H.n_embed % H.n_head == 0
     # key, query, value projections for all heads
-    self.key = nn.Linear(H.n_embd, H.n_embd)
-    self.query = nn.Linear(H.n_embd, H.n_embd)
-    self.value = nn.Linear(H.n_embd, H.n_embd)
-    # regularization
-    self.attn_drop = nn.Dropout(H.attn_pdrop)
-    self.resid_drop = nn.Dropout(H.resid_pdrop)
+    self.key = nn.Linear(H.n_embed, H.n_embed)
+    self.query = nn.Linear(H.n_embed, H.n_embed)
+    self.value = nn.Linear(H.n_embed, H.n_embed)
     # output projection
-    self.proj = nn.Linear(H.n_embd, H.n_embd)
+    self.proj = nn.Linear(H.n_embed, H.n_embed)
     # causal mask to ensure that attention is only applied to the left in the input sequence
     self.register_buffer("mask", torch.tril(torch.ones(H.block_size, H.block_size)).view(1, 1, H.block_size, H.block_size))
     self.H = H
@@ -73,12 +77,76 @@ class CausalSelfAttention(nn.Module):
     att = (q @ k.transpose(-2, -1)) * (1.0 / np.sqrt(k.size(-1)))
     att = att.masked_fill(self.mask[:, :, :T, :T] == 0, float('-inf'))
     att = F.softmax(att, dim=-1)
-    att = self.attn_drop(att)
     y = att @ v  # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
     y = y.transpose(1, 2).contiguous().view(B, T, C)  # re-assemble all head outputs side by side
     # output projection
-    y = self.resid_drop(self.proj(y))
+    y = self.proj(y)
     return y
+
+class Block(nn.Module):
+  """ an unassuming Transformer block """
+  def __init__(self, H):
+    super().__init__()
+    self.ln1 = nn.LayerNorm(H.n_embed)
+    self.ln2 = nn.LayerNorm(H.n_embed)
+    self.attn = CausalSelfAttention(H)
+    self.mlp = nn.Sequential(
+        nn.Linear(H.n_embed, 4 * H.n_embed),
+        nn.GELU(),
+        nn.Linear(4 * H.n_embed, H.n_embed),
+    )
+
+  def forward(self, x):
+    x = x + self.attn(self.ln1(x))
+    x = x + self.mlp(self.ln2(x))
+    return x
+
+class GPT(nn.Module):
+  """  the full GPT language model, with a context size of block_size """
+  def __init__(self, H):
+    super().__init__()
+    # input embedding stem
+    self.pixel_emb = nn.Conv2d(3, H.n_embed, kernel_size=1, stride=1)
+    # transformer
+    self.blocks = nn.Sequential(*[Block(H) for _ in range(H.n_layer)])
+    # decoder head
+    self.ln_f = nn.LayerNorm(H.n_embed)
+    self.head = nn.Conv2d(H.n_embed, 1, kernel_size=1, stride=1, bias=False)
+    #logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
+    self.H = H
+
+  def forward(self, x):
+    batch_size = x.shape[0]
+    x = append_location(x)
+    # forward the GPT model
+    x = self.pixel_emb(x)
+    x = x.permute(0, 2, 3, 1).contiguous().view(batch_size, 28*28, -1)
+    # add padding on left so that we can't see ourself.
+    x = torch.cat([torch.zeros(batch_size, 1, self.H.n_embed).to(self.H.device), x[:, :-1]], dim=1)
+    x = self.blocks(x)
+    x = self.ln_f(x)
+    x = x.permute(0, 2, 1).view(batch_size, -1, 28, 28)
+    x = self.head(x)
+    return x
+
+  def nll(self, x):
+    x = x[0]
+    logits = self.forward(x)
+    return F.binary_cross_entropy_with_logits(logits, x)
+
+  def sample(self, n):
+    imgs = []
+    with torch.no_grad():
+      samples = torch.zeros(n, 1, 28, 28).to(self.H.device)
+      for r in range(28):
+        for c in range(28):
+          logits = self.forward(samples)[:, :, r, c]
+          probs = torch.sigmoid(logits)
+          samples[:, :, r, c] = torch.bernoulli(probs)
+          imgs += [samples.cpu()]
+    imgs = np.stack([img.numpy() for img in imgs], axis=1)
+    return samples.cpu(), imgs
+
 
 if __name__ == '__main__':
   # TODO: use low beta 0.1
@@ -90,7 +158,7 @@ if __name__ == '__main__':
   train_ds, test_ds = load_mnist(H.bs)
   _batch = next(iter(train_ds))
   _batch[0] = _batch[0].to(H.device)
-  model = Wavenet(H).to(H.device)
+  model = GPT(H).to(H.device)
   optimizer = Adam(model.parameters(), lr=H.lr)
 
   def train_epoch():

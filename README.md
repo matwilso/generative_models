@@ -58,3 +58,7 @@ Domains:
 - Audio
 - Motion
   - if you were to learn the model perfectly. such that you could optimize through it
+
+  // TODO: refactor
+  // TODO: switch everything over to mnist for now
+  // TODO: add class conditioning
