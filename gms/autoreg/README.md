@@ -2,6 +2,7 @@
 
 // TODO: make these all consistent in here and get rid of duplicate code. just because it's a pain to deal with.
 // they are all way simple, so it should be fine.
+// TODO: makme sampling viz better. change that.
 
 # RNN version
 
@@ -99,9 +100,7 @@ You will still need to run step-by-step forward passes to generate.
 One difference is that you don't mask out the weights, you mask out the attention.
 So in the softmax, you just set those elements to -inf.
 
-
-
-
+The surprising thing in my experience w/ transformers is they don't tend to overfit as much as other methods. The inductive biases seem strong with this one.
 
 ## extra
 

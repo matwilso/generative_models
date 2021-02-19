@@ -69,7 +69,7 @@ class ResidualBlock(nn.Module):
     # these blocks are somewhat distracting from understanding.
     # the key Wavenet causal thing is just the structure of the dilation, making sure you only see the past not the future
     self.dilated = DilatedCausalConv1d('B', res_channels, 2 * res_channels, dilation=dilation)
-    self.conv_res = nn.Conv1d(res_channels, res_channels, 1)  # does this really help much, just transforming the data elementwise? i guess you can learn something that you want to just apply on every element.
+    self.conv_res = nn.Conv1d(res_channels, res_channels, 1)  # does this really help much, just transforming the data elementwise? i guess you can learn something that you want to just apply on every element. kind of like the forwards in the transformerr
 
   def forward(self, x):
     output = self.dilated(x)

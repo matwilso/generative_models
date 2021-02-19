@@ -26,14 +26,12 @@ H.done_n = 20
 H.b = 0.1
 H.logdir = './logs/'
 H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
-H.lr = 1e-4
+H.lr = 1e-3
 H.class_cond = 0
 H.hidden_size = 512
 H.append_loc = 1
 H.overfit_batch = 0
-
-
-H.n_layer = 1
+H.n_layer = 2
 H.n_head = 4
 H.n_embed = 128
 H.block_size = 28*28
