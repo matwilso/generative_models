@@ -15,11 +15,6 @@ class AttrDict(dict):
   __setattr__ = dict.__setitem__
   __getattr__ = dict.__getitem__
 
-def unproc(img):
-  img = img.transpose(1, -1).detach().cpu().numpy().astype(np.uint8)
-  img = img.reshape(-1, 28, 1)
-  return img
-
 def dump_logger(logger, writer, i, C):
   print('=' * 30)
   print(i)
@@ -37,8 +32,6 @@ def plot_samples(name, writer, i, *args):
   l = []
   for a in args:
     upr = torch.reshape(a, [10 * 28, 28]).cpu().detach().numpy()
-    #upr = unproc(a)
-    #upr = a.detach().cpu().transpose(1, -1).numpy()
     l += [upr, np.zeros_like(upr)]
   img = np.concatenate(l, axis=-1)
   plt.imsave('test.png', img)

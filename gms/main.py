@@ -21,6 +21,7 @@ C.logdir = './logs/'
 C.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
 C.lr = 5e-4
 C.class_cond = 0
+C.gan_reg = 1e-4
 
 if __name__ == '__main__':
   # PARSE CMD LINE
@@ -31,12 +32,13 @@ if __name__ == '__main__':
   # SETUP
   model = {
     'vae': gms.VAE,
+    'gan': gms.GAN,
   }[C.model](C)
+
   model = model.to(C.device)
   writer = SummaryWriter(C.logdir)
   logger = utils.dump_logger({}, writer, 0, C)
   train_ds, test_ds = utils.load_mnist(C.bs)
-  optimizer = Adam(model.parameters(), lr=C.lr)
   num_vars = utils.count_vars(model)
 
   # TRAINING LOOP 
@@ -44,10 +46,8 @@ if __name__ == '__main__':
     # TRAIN
     for batch in train_ds:
       batch[0], batch[1] = batch[0].to(C.device), batch[1].to(C.device)
-      optimizer.zero_grad()
-      loss, metrics = model.loss(batch)
-      loss.backward()
-      optimizer.step()
+      # TODO: see if we can just use loss and write the gan such that it works.
+      metrics = model.train_step(batch)
       for key in metrics:
         logger[key] += [metrics[key].detach().cpu()]
     # TEST
