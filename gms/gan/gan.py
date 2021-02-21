@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
 import argparse
-import utils
+from gms import utils
 
 H = utils.AttrDict()
 H.bs = 512
@@ -73,7 +73,7 @@ class Generator(nn.Module):
 
 
 if __name__ == '__main__':
-  from utils import CIFAR, MNIST
+  from gms.utils import CIFAR, MNIST
   H = utils.parseC(H)
   ds = CIFAR(H)
   disc = Discriminator(H).to(H.device)

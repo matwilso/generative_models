@@ -16,9 +16,6 @@ def deconv(inp, out, ks=3, stride=2, bn=False, activ=nn.Identity()):
           activ]
 
 
-L = nn.ModuleList
-
-
 class E1(nn.Module):
   def __init__(self, H):
     super().__init__()
