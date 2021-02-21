@@ -16,25 +16,25 @@ import torch.nn.functional as F
 from gms.nets import E1, D1
 from gms import utils
 
-H = utils.AttrDict()
-H.bs = 32
-H.z_size = 128
-H.bn = 0
-H.device = 'cuda'
-H.log_n = 1000
-H.done_n = 20
-H.b = 0.1
-H.logdir = './logs/'
-H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
-H.lr = 1e-3
-H.class_cond = 0
-H.hidden_size = 512
-H.append_loc = 1
-H.overfit_batch = 0
-H.n_layer = 2
-H.n_head = 4
-H.n_embed = 128
-H.block_size = 28*28
+C = utils.AttrDict()
+C.bs = 32
+C.z_size = 128
+C.bn = 0
+C.device = 'cuda'
+C.log_n = 1000
+C.done_n = 20
+C.b = 0.1
+C.logdir = './logs/'
+C.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
+C.lr = 1e-3
+C.class_cond = 0
+C.hidden_size = 512
+C.append_loc = 1
+C.overfit_batch = 0
+C.n_layer = 2
+C.n_head = 4
+C.n_embed = 128
+C.block_size = 28*28
 
 # TODO: record bits/dim
 # TODO: try interpolation
@@ -52,25 +52,25 @@ class CausalSelfAttention(nn.Module):
   explicit implementation here to show that there is nothing too scary here.
   """
 
-  def __init__(self, H):
+  def __init__(self, C):
     super().__init__()
-    assert H.n_embed % H.n_head == 0
+    assert C.n_embed % C.n_head == 0
     # key, query, value projections for all heads
-    self.key = nn.Linear(H.n_embed, H.n_embed)
-    self.query = nn.Linear(H.n_embed, H.n_embed)
-    self.value = nn.Linear(H.n_embed, H.n_embed)
+    self.key = nn.Linear(C.n_embed, C.n_embed)
+    self.query = nn.Linear(C.n_embed, C.n_embed)
+    self.value = nn.Linear(C.n_embed, C.n_embed)
     # output projection
-    self.proj = nn.Linear(H.n_embed, H.n_embed)
+    self.proj = nn.Linear(C.n_embed, C.n_embed)
     # causal mask to ensure that attention is only applied to the left in the input sequence
-    self.register_buffer("mask", torch.tril(torch.ones(H.block_size, H.block_size)).view(1, 1, H.block_size, H.block_size))
-    self.H = H
+    self.register_buffer("mask", torch.tril(torch.ones(C.block_size, C.block_size)).view(1, 1, C.block_size, C.block_size))
+    self.C = C
 
   def forward(self, x, layer_past=None):
     B, T, C = x.size()
     # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-    k = self.key(x).view(B, T, self.H.n_head, C // self.H.n_head).transpose(1, 2)  # (B, nh, T, hs)
-    q = self.query(x).view(B, T, self.H.n_head, C // self.H.n_head).transpose(1, 2)  # (B, nh, T, hs)
-    v = self.value(x).view(B, T, self.H.n_head, C // self.H.n_head).transpose(1, 2)  # (B, nh, T, hs)
+    k = self.key(x).view(B, T, self.C.n_head, C // self.C.n_head).transpose(1, 2)  # (B, nh, T, hs)
+    q = self.query(x).view(B, T, self.C.n_head, C // self.C.n_head).transpose(1, 2)  # (B, nh, T, hs)
+    v = self.value(x).view(B, T, self.C.n_head, C // self.C.n_head).transpose(1, 2)  # (B, nh, T, hs)
     # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
     att = (q @ k.transpose(-2, -1)) * (1.0 / np.sqrt(k.size(-1)))
     att = att.masked_fill(self.mask[:, :, :T, :T] == 0, float('-inf'))
@@ -83,15 +83,15 @@ class CausalSelfAttention(nn.Module):
 
 class Block(nn.Module):
   """ an unassuming Transformer block """
-  def __init__(self, H):
+  def __init__(self, C):
     super().__init__()
-    self.ln1 = nn.LayerNorm(H.n_embed)
-    self.ln2 = nn.LayerNorm(H.n_embed)
-    self.attn = CausalSelfAttention(H)
+    self.ln1 = nn.LayerNorm(C.n_embed)
+    self.ln2 = nn.LayerNorm(C.n_embed)
+    self.attn = CausalSelfAttention(C)
     self.mlp = nn.Sequential(
-        nn.Linear(H.n_embed, 4 * H.n_embed),
+        nn.Linear(C.n_embed, 4 * C.n_embed),
         nn.GELU(),
-        nn.Linear(4 * H.n_embed, H.n_embed),
+        nn.Linear(4 * C.n_embed, C.n_embed),
     )
 
   def forward(self, x):
@@ -101,17 +101,17 @@ class Block(nn.Module):
 
 class GPT(nn.Module):
   """  the full GPT language model, with a context size of block_size """
-  def __init__(self, H):
+  def __init__(self, C):
     super().__init__()
     # input embedding stem
-    self.pixel_emb = nn.Conv2d(3, H.n_embed, kernel_size=1, stride=1)
+    self.pixel_emb = nn.Conv2d(3, C.n_embed, kernel_size=1, stride=1)
     # transformer
-    self.blocks = nn.Sequential(*[Block(H) for _ in range(H.n_layer)])
+    self.blocks = nn.Sequential(*[Block(C) for _ in range(C.n_layer)])
     # decoder head
-    self.ln_f = nn.LayerNorm(H.n_embed)
-    self.head = nn.Conv2d(H.n_embed, 1, kernel_size=1, stride=1, bias=False)
+    self.ln_f = nn.LayerNorm(C.n_embed)
+    self.head = nn.Conv2d(C.n_embed, 1, kernel_size=1, stride=1, bias=False)
     #logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
-    self.H = H
+    self.C = C
 
   def forward(self, x):
     batch_size = x.shape[0]
@@ -120,7 +120,7 @@ class GPT(nn.Module):
     x = self.pixel_emb(x)
     x = x.permute(0, 2, 3, 1).contiguous().view(batch_size, 28*28, -1)
     # add padding on left so that we can't see ourself.
-    x = torch.cat([torch.zeros(batch_size, 1, self.H.n_embed).to(self.H.device), x[:, :-1]], dim=1)
+    x = torch.cat([torch.zeros(batch_size, 1, self.C.n_embed).to(self.C.device), x[:, :-1]], dim=1)
     x = self.blocks(x)
     x = self.ln_f(x)
     x = x.permute(0, 2, 1).view(batch_size, -1, 28, 28)
@@ -135,7 +135,7 @@ class GPT(nn.Module):
   def sample(self, n):
     imgs = []
     with torch.no_grad():
-      samples = torch.zeros(n, 1, 28, 28).to(self.H.device)
+      samples = torch.zeros(n, 1, 28, 28).to(self.C.device)
       for r in range(28):
         for c in range(28):
           logits = self.forward(samples)[:, :, r, c]
@@ -150,18 +150,18 @@ if __name__ == '__main__':
   # TODO: use low beta 0.1
   # TODO: make network bigger
   from gms.utils import load_mnist
-  H = utils.parseH(H)
-  writer = SummaryWriter(H.logdir)
-  logger = utils.dump_logger({}, writer, 0, H)
-  train_ds, test_ds = load_mnist(H.bs)
+  C = utils.parseC(C)
+  writer = SummaryWriter(C.logdir)
+  logger = utils.dump_logger({}, writer, 0, C)
+  train_ds, test_ds = load_mnist(C.bs)
   _batch = next(iter(train_ds))
-  _batch[0] = _batch[0].to(H.device)
-  model = GPT(H).to(H.device)
-  optimizer = Adam(model.parameters(), lr=H.lr)
+  _batch[0] = _batch[0].to(C.device)
+  model = GPT(C).to(C.device)
+  optimizer = Adam(model.parameters(), lr=C.lr)
 
   def train_epoch():
-    if H.overfit_batch:
-      for i in range(H.log_n):
+    if C.overfit_batch:
+      for i in range(C.log_n):
         optimizer.zero_grad()
         loss = model.nll(_batch)
         loss.backward()
@@ -169,7 +169,7 @@ if __name__ == '__main__':
         logger['loss'] += [loss.detach().cpu()]
     else:
       for batch in train_ds:
-        batch[0], batch[1] = batch[0].to(H.device), batch[1].to(H.device)
+        batch[0], batch[1] = batch[0].to(C.device), batch[1].to(C.device)
         optimizer.zero_grad()
         loss = model.nll(batch)
         loss.backward()
@@ -178,7 +178,7 @@ if __name__ == '__main__':
 
   def eval():
     model.eval()
-    if H.overfit_batch:
+    if C.overfit_batch:
       batch = _batch
       loss = model.nll(batch)
       logger['test/bits_per_dim'] = loss.item() / np.log(2)
@@ -186,7 +186,7 @@ if __name__ == '__main__':
       total_loss = 0
       with torch.no_grad():
         for batch in test_ds:
-          batch[0], batch[1] = batch[0].to(H.device), batch[1].to(H.device)
+          batch[0], batch[1] = batch[0].to(C.device), batch[1].to(C.device)
           loss = model.nll(batch)
           total_loss += loss * batch[0].shape[0]
         avg_loss = total_loss / len(test_ds.dataset)
@@ -200,7 +200,7 @@ if __name__ == '__main__':
   for i in count():
     train_epoch()
     eval()
-    logger = utils.dump_logger(logger, writer, i, H)
+    logger = utils.dump_logger(logger, writer, i, C)
 
-    if i >= H.done_n:
+    if i >= C.done_n:
       break

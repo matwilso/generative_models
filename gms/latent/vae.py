@@ -34,7 +34,7 @@ if __name__ == '__main__':
   # TODO: make network bigger
   from utils import CIFAR, MNIST
   from net2 import ResNet18Enc, ResNet18Dec
-  H = utils.parseH(H)
+  H = utils.parseC(H)
   writer = SummaryWriter(H.logdir)
   logger = utils.dump_logger({}, writer, 0, H)
 

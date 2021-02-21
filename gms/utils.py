@@ -9,7 +9,7 @@ import numpy as np
 import yaml
 
 
-def parseH(H):
+def parseC(H):
   parser = argparse.ArgumentParser()
   for key, value in H.items():
     parser.add_argument(f'--{key}', type=type(value), default=value)

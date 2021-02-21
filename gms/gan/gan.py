@@ -74,7 +74,7 @@ class Generator(nn.Module):
 
 if __name__ == '__main__':
   from utils import CIFAR, MNIST
-  H = utils.parseH(H)
+  H = utils.parseC(H)
   ds = CIFAR(H)
   disc = Discriminator(H).to(H.device)
   gen = Generator(H).to(H.device)

@@ -144,7 +144,7 @@ if __name__ == '__main__':
   # TODO: use low beta 0.1
   # TODO: make network bigger
   from gms.utils import load_mnist
-  H = utils.parseH(H)
+  H = utils.parseC(H)
   writer = SummaryWriter(H.logdir)
   logger = utils.dump_logger({}, writer, 0, H)
   train_ds, test_ds = load_mnist(H.bs)
