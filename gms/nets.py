@@ -9,7 +9,7 @@ class GaussHead(nn.Module):
     std = F.softplus(log_std)
     return tdib.Normal(mu, std)
 
-class DownConv(nn.Module):
+class Encoder(nn.Module):
   def __init__(self, out_size, C):
     super().__init__()
     self.C = C
@@ -27,7 +27,7 @@ class DownConv(nn.Module):
   def forward(self, x):
     return self.net(x)
 
-class UpConv(nn.Module):
+class Decoder(nn.Module):
   def __init__(self, in_size, C):
     super().__init__()
     self.C = C

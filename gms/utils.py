@@ -46,9 +46,12 @@ def load_mnist(bs):
       transforms.ToTensor(),
       lambda x: (x > 0.5).float()
   ])
+  #transform = transforms.Compose([
+  #    transforms.ToTensor(),
+  #    transforms.Normalize(mean=(0.1307, ), std=(0.3081, ))])
   train_dset = MNIST('data', transform=transform, train=True, download=True)
   test_dset = MNIST('data', transform=transform, train=False, download=True)
 
-  train_loader = data.DataLoader(train_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2)
-  test_loader = data.DataLoader(test_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2)
+  train_loader = data.DataLoader(train_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
+  test_loader = data.DataLoader(test_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
   return train_loader, test_loader

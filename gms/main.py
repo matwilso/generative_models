@@ -49,7 +49,7 @@ if __name__ == '__main__':
       # TODO: see if we can just use loss and write the gan such that it works.
       metrics = model.train_step(batch)
       for key in metrics:
-        logger[key] += [metrics[key].detach().cpu()]
+        logger[C.model+'/'+key] += [metrics[key].detach().cpu()]
     # TEST
     model.eval()
     with torch.no_grad():
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         test_batch[0], test_batch[1] = test_batch[0].to(C.device), test_batch[1].to(C.device)
         test_loss, test_metrics = model.loss(test_batch)
         for key in test_metrics:
-          logger['test/' + key] += [test_metrics[key].detach().cpu()]
+          logger[C.model+'/test/' + key] += [test_metrics[key].detach().cpu()]
       model.evaluate(writer, test_batch, epoch)
     model.train()
     # LOGGING

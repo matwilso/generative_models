@@ -7,15 +7,53 @@ from torch.optim import Adam
 from gms import utils
 from gms import nets
 
+class Encoder(nn.Module):
+  def __init__(self, out_size, C):
+    super().__init__()
+    self.C = C
+    H = self.C.hidden_size
+    self.net = nn.Sequential(
+        nn.Conv2d(1, H, 3, 2),
+        nn.ReLU(),
+        nn.Conv2d(H, H, 3, 2),
+        nn.ReLU(),
+        nn.Conv2d(H, H, 3, 1),
+        nn.ReLU(),
+        nn.Conv2d(H, 2 * out_size, 3, 2),
+        nn.Flatten(1,3),
+        nets.GaussHead()
+    )
+  def get_dist(self, x):
+    mu, log_std = x.chunk(2,-1)
+    std = F.softplus(log_std) + 1e-4
+    return tdib.Normal(mu, std)
+
+  def forward(self, x):
+    return self.get_dist(self.net(x))
+
+class Decoder(nn.Module):
+  def __init__(self, in_size, C):
+    super().__init__()
+    self.C = C
+    H = self.C.hidden_size
+    self.net = nn.Sequential(
+        nn.ConvTranspose2d(in_size, H, 5, 1),
+        nn.ReLU(),
+        nn.ConvTranspose2d(H, H, 4, 2),
+        nn.ReLU(),
+        nn.ConvTranspose2d(H, H, 4, 2),
+        nn.ReLU(),
+        nn.ConvTranspose2d(H, 1, 3, 1),
+    )
+  def forward(self, x):
+    x = self.net(x[..., None, None])
+    return x
+
 class VAE(nn.Module):
   def __init__(self, C):
     super().__init__()
-    self.encoder = nn.Sequential(
-        nets.DownConv(2 * C.z_size, C),
-        nn.Flatten(1, 3),
-        nets.GaussHead()
-    )
-    self.decoder = nets.UpConv(C.z_size, C)
+    self.encoder = Encoder(C.z_size, C)
+    self.decoder = Decoder(C.z_size, C)
     self.optimizer = Adam(self.parameters(), lr=C.lr)
     self.C = C
 
@@ -52,4 +90,3 @@ class VAE(nn.Module):
     loss = (recon_loss + self.C.beta * kl_loss).mean()
     metrics = {'loss': loss, 'recon_loss': recon_loss.mean(), 'kl_loss': kl_loss.mean()}
     return loss, metrics
-
