@@ -27,6 +27,9 @@ class Discriminator(nn.Module):
         nn.LeakyReLU(),
         nn.Conv2d(H, out_size, 3, 2),
     )
+    for i in range(len(self.net)):
+      if hasattr(self.net[i], 'weight') and i < (len(self.net))-3:
+        self.net[i] = nn.utils.spectral_norm(self.net[i])
   def forward(self, x):
     return self.net(x)
 
@@ -78,7 +81,7 @@ class GAN(nn.Module):
     disc_loss = (real_disc - fake_disc).mean()
     disc_loss += self.C.gan_reg * (real_disc**2 + fake_disc**2).mean()
     disc_loss.backward()
-    #disc_grad_norm = nn.utils.clip_grad_norm_(self.disc.parameters(), 100)
+    disc_grad_norm = nn.utils.clip_grad_norm_(self.disc.parameters(), 100)
     self.disc_optim.step()
 
     # Generator
@@ -87,9 +90,9 @@ class GAN(nn.Module):
     fake_disc = self.disc(fake)
     gen_loss = fake_disc.mean()
     gen_loss.backward()
-    #gen_grad_norm = nn.utils.clip_grad_norm_(self.gen.parameters(), 100)
+    gen_grad_norm = nn.utils.clip_grad_norm_(self.gen.parameters(), 100)
     self.gen_optim.step()
-    metrics = {'loss': disc_loss + gen_loss, 'disc_loss': disc_loss, 'gen_loss': gen_loss}#, 'disc_grad_norm': disc_grad_norm, 'gen_grad_norm': gen_grad_norm}
+    metrics = {'loss': disc_loss + gen_loss, 'disc_loss': disc_loss, 'gen_loss': gen_loss, 'disc_grad_norm': disc_grad_norm, 'gen_grad_norm': gen_grad_norm}
     return metrics
 
   def loss(self, *args, **kwargs):
