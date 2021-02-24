@@ -34,6 +34,7 @@ class Discriminator(nn.Module):
     return self.net(x)
 
 class Generator(nn.Module):
+  DC = utils.AttrDict()
   def __init__(self, in_size, C):
     super().__init__()
     self.C = C

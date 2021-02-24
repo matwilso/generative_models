@@ -8,13 +8,14 @@ import torch
 import gms
 from gms import utils
 
+# TRAINING SCRIPT
+
 C = utils.AttrDict()
 C.model = 'vae'
-C.bs = 512
+C.bs = 64
 C.z_size = 128
 C.hidden_size = 256
 C.device = 'cuda'
-C.log_n = 1000
 C.done_n = 200
 C.beta = 1.0
 C.logdir = './logs/'
@@ -28,14 +29,15 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   for key, value in C.items():
     parser.add_argument(f'--{key}', type=type(value), default=value)
-  C = parser.parse_args()
+  tempC = parser.parse_args()
   # SETUP
-  model = {
+  Model = {
     'vae': gms.VAE,
     'gan': gms.GAN,
-  }[C.model](C)
-
-  model = model.to(C.device)
+  }[tempC.model]
+  parser.set_defaults(**Model.DC.__dict__)
+  C = parser.parse_args()
+  model = Model(C).to(C.device)
   writer = SummaryWriter(C.logdir)
   logger = utils.dump_logger({}, writer, 0, C)
   train_ds, test_ds = utils.load_mnist(C.bs)

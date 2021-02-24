@@ -15,6 +15,9 @@ class AttrDict(dict):
   __setattr__ = dict.__setitem__
   __getattr__ = dict.__getitem__
 
+class GM(torch.nn.Module):
+  DC = AttrDict() # default configuration. can be customized across models
+
 def dump_logger(logger, writer, i, C):
   print('=' * 30)
   print(i)

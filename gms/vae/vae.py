@@ -5,7 +5,6 @@ from torch import nn
 import torch.nn.functional as F
 from torch.optim import Adam
 from gms import utils
-from gms import nets
 
 class Encoder(nn.Module):
   def __init__(self, out_size, C):
@@ -21,8 +20,8 @@ class Encoder(nn.Module):
         nn.ReLU(),
         nn.Conv2d(H, 2 * out_size, 3, 2),
         nn.Flatten(1,3),
-        nets.GaussHead()
     )
+
   def get_dist(self, x):
     mu, log_std = x.chunk(2,-1)
     std = F.softplus(log_std) + 1e-4
@@ -50,6 +49,7 @@ class Decoder(nn.Module):
     return x
 
 class VAE(nn.Module):
+  DC = utils.AttrDict() # default C
   def __init__(self, C):
     super().__init__()
     self.encoder = Encoder(C.z_size, C)
