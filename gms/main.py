@@ -54,12 +54,12 @@ if __name__ == '__main__':
   # TRAINING LOOP 
   for epoch in count():
     # TRAIN
-    #for batch in train_ds:
-    #  batch[0], batch[1] = batch[0].to(C.device), batch[1].to(C.device)
-    #  # TODO: see if we can just use loss and write the gan such that it works.
-    #  metrics = model.train_step(batch)
-    #  for key in metrics:
-    #    logger[C.model+'/'+key] += [metrics[key].detach().cpu()]
+    for batch in train_ds:
+      batch[0], batch[1] = batch[0].to(C.device), batch[1].to(C.device)
+      # TODO: see if we can just use loss and write the gan such that it works.
+      metrics = model.train_step(batch)
+      for key in metrics:
+        logger[C.model+'/'+key] += [metrics[key].detach().cpu()]
     # TEST
     model.eval()
     with torch.no_grad():

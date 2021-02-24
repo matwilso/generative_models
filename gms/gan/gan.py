@@ -32,19 +32,14 @@ class Discriminator(nn.Module):
         nn.BatchNorm2d(H),
         nn.LeakyReLU(),
         nn.Conv2d(H, 1, 3, 2),
-        #nn.Sigmoid()
+        nn.Sigmoid()
     )
     self.apply(weights_init)
-    # for i in range(len(self.net)):
-    #  if hasattr(self.net[i], 'weight') and i < (len(self.net)) - 3:
-    #    self.net[i] = nn.utils.spectral_norm(self.net[i])
 
   def forward(self, x):
     return self.net(x)
 
 class Generator(nn.Module):
-  DC = utils.AttrDict()
-
   def __init__(self, C):
     super().__init__()
     self.C = C
@@ -63,11 +58,11 @@ class Generator(nn.Module):
         # nn.GroupNorm(32, H),
         nn.ReLU(),
         nn.ConvTranspose2d(H, 1, 3, 1),
-        nn.Sigmoid(),
-    )
+        nn.Sigmoid(),)
+    self.apply(weights_init)
 
   def forward(self, x):
-    x = self.net(x[..., None, None])
+    x = self.net(x)
     return x
 
 # TODO: try out spec norm
@@ -84,7 +79,7 @@ class GAN(nn.Module):
     # Setup Adam optimizers for both G and D
     self.disc_optim = Adam(self.disc.parameters(), lr=C.lr, betas=(0.5, 0.999))
     self.gen_optim = Adam(self.gen.parameters(), lr=C.lr, betas=(0.5, 0.999))
-    self.fixed_noise = torch.randn(C.bs, C.noise_size, 1, 1, device=C.device)
+    self.fixed_noise = None
     self.real_label = 1
     self.fake_label = 0
     self.C = C
@@ -95,7 +90,7 @@ class GAN(nn.Module):
     bs = x.shape[0]
     # train with real
     self.disc_optim.zero_grad()
-    label = torch.full((bs,), self.real_label, dtype=x.dtype, device=x.device)
+    label = torch.full((bs,1,1,1), self.real_label, dtype=x.dtype, device=x.device)
     output = self.disc(x)
     errD_real = self.criterion(output, label)
     errD_real.backward()
@@ -119,38 +114,16 @@ class GAN(nn.Module):
     D_G_z2 = output.mean().item()
     self.gen_optim.step()
     metrics = {}
-    ## Discriminator
-    ## real example
-    #self.disc_optim.zero_grad()
-    #real_disc = self.disc(x)
-    ## fake example
-    #noise = torch.randn(x.shape[0], self.C.noise_size).to(self.C.device)
-    #fake = self.gen(noise)
-    #fake_disc = self.disc(fake)
-    ## backward
-    #disc_loss = (real_disc - fake_disc).mean()
-    #disc_loss += self.C.reg * (real_disc**2 + fake_disc**2).mean()
-    #disc_loss.backward()
-    #disc_grad_norm = nn.utils.clip_grad_norm_(self.disc.parameters(), 100)
-    #self.disc_optim.step()
-
-    ## Generator
-    #self.gen_optim.zero_grad()
-    #fake = self.gen(noise)
-    #fake_disc = self.disc(fake)
-    #gen_loss = fake_disc.mean()
-    #gen_loss.backward()
-    #gen_grad_norm = nn.utils.clip_grad_norm_(self.gen.parameters(), 100)
-    #self.gen_optim.step()
-    #metrics = {'loss': disc_loss + gen_loss, 'disc_loss': disc_loss, 'gen_loss': gen_loss, 'disc_grad_norm': disc_grad_norm, 'gen_grad_norm': gen_grad_norm}
     return metrics
 
   def loss(self, *args, **kwargs):
     return torch.zeros(1), {}
 
   def sample(self, n):
+    if self.fixed_noise is None:
+      self.fixed_noise = torch.randn(n, self.C.noise_size, 1, 1, device=self.C.device)
     with torch.no_grad():
-      noise = torch.randn(n, self.C.noise_size).to(self.C.device)
+      noise = self.fixed_noise
       fake = self.gen(noise)
     return fake
 
