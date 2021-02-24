@@ -33,9 +33,15 @@ if __name__ == '__main__':
   # SETUP
   Model = {
     'vae': gms.VAE,
+    'vqvae': gms.VQVAE,
     'gan': gms.GAN,
   }[tempC.model]
-  parser.set_defaults(**Model.DC.__dict__)
+  defaults = {}
+  for key, value in Model.DC.items():
+    defaults[key] = value
+    if key not in tempC:
+      parser.add_argument(f'--{key}', type=type(value), default=value)
+  parser.set_defaults(**defaults)
   C = parser.parse_args()
   model = Model(C).to(C.device)
   writer = SummaryWriter(C.logdir)

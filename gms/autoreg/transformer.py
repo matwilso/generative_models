@@ -13,7 +13,6 @@ from torch import nn
 import torch.nn.functional as F
 
 # TODO: VQ VAE may be worth doing. but maybe as a separate repo.
-from gms.nets import E1, D1
 from gms import utils
 
 C = utils.AttrDict()
@@ -52,8 +51,9 @@ class CausalSelfAttention(nn.Module):
   explicit implementation here to show that there is nothing too scary here.
   """
 
-  def __init__(self, C):
+  def __init__(self, block_size, C):
     super().__init__()
+    self.block_size = block_size
     assert C.n_embed % C.n_head == 0
     # key, query, value projections for all heads
     self.key = nn.Linear(C.n_embed, C.n_embed)
@@ -62,7 +62,7 @@ class CausalSelfAttention(nn.Module):
     # output projection
     self.proj = nn.Linear(C.n_embed, C.n_embed)
     # causal mask to ensure that attention is only applied to the left in the input sequence
-    self.register_buffer("mask", torch.tril(torch.ones(C.block_size, C.block_size)).view(1, 1, C.block_size, C.block_size))
+    self.register_buffer("mask", torch.tril(torch.ones(self.block_size, self.block_size)).view(1, 1, self.block_size, self.block_size))
     self.C = C
 
   def forward(self, x, layer_past=None):
@@ -83,11 +83,12 @@ class CausalSelfAttention(nn.Module):
 
 class Block(nn.Module):
   """ an unassuming Transformer block """
-  def __init__(self, C):
+
+  def __init__(self, block_size, C):
     super().__init__()
     self.ln1 = nn.LayerNorm(C.n_embed)
     self.ln2 = nn.LayerNorm(C.n_embed)
-    self.attn = CausalSelfAttention(C)
+    self.attn = CausalSelfAttention(block_size, C)
     self.mlp = nn.Sequential(
         nn.Linear(C.n_embed, 4 * C.n_embed),
         nn.GELU(),
@@ -98,6 +99,7 @@ class Block(nn.Module):
     x = x + self.attn(self.ln1(x))
     x = x + self.mlp(self.ln2(x))
     return x
+
 
 class GPT(nn.Module):
   """  the full GPT language model, with a context size of block_size """

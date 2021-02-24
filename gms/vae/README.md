@@ -127,3 +127,5 @@ Advantages:
 
 
 # VQ-VAE
+
+For VQ-VAE, I should do a more baby version that uses MNIST and maybe goes down to a smaller latent space. like 16x16 or 8x8 or something.

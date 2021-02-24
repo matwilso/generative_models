@@ -9,7 +9,6 @@ import torch.nn.functional as F
 from torch.optim import Adam
 
 from gms import utils
-from gms import nets
 
 class Discriminator(nn.Module):
   def __init__(self, out_size, C):

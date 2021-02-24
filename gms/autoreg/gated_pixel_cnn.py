@@ -14,7 +14,6 @@ from torch import nn
 import torch.nn.functional as F
 
 # TODO: VQ VAE may be worth doing. but maybe as a separate repo.
-from gms.nets import E1, D1
 from gms import utils
 from og_pixel_cnn import LayerNorm, MaskConv2d
 
