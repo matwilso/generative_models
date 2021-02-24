@@ -1,4 +1,6 @@
 import itertools
+
+from matplotlib.pyplot import install_repl_displayhook
 import torch
 from torch import distributions as tdib
 from torch.optim import Adam
@@ -6,61 +8,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from gms import utils
-from gms.autoreg.transformer import Block
-
-class CategoricalHead(nn.Module):
-  """take logits and produce a bernoulli distribution independently on each element of the token"""
-  def __init__(self, in_n, out_n, C):
-    super().__init__()
-    self.C = C
-    self.layer = nn.Linear(in_n, out_n)
-
-  def forward(self, x, past_o=None):
-    x = self.layer(x)
-    return tdib.Multinomial(logits=x)
-
-class TransformerCNN(nn.Module):
-  """  the full GPT language model, with a context size of block_size """
-  def __init__(self, in_size, block_size, C):
-    super().__init__()
-    self.block_size = block_size
-    self.pos_emb = nn.Parameter(torch.zeros(1, self.block_size, C.n_embed))
-    self.embed = nn.Linear(in_size, C.n_embed, bias=False)
-    self.blocks = nn.Sequential(*[Block(block_size, C) for _ in range(C.n_layer)])
-    self.ln_f = nn.LayerNorm(C.n_embed)
-    self.dist_head = CategoricalHead(C.n_embed, in_size, C)
-    self.C = C
-
-  def forward(self, x):
-    BS, T, C = x.shape
-    # SHIFT RIGHT (add a padding on the left) so you can't see yourself 
-    x = torch.cat([torch.zeros(BS, 1, C).to(self.C.device), x[:, :-1]], dim=1)
-    # forward the GPT model
-    x = self.embed(x)
-    x += self.pos_emb # each position maps to a (learnable) vector
-    # add padding on left so that we can't see ourself.
-    x = self.blocks(x)
-    logits = self.ln_f(x)
-    return self.dist_head(logits)
-
-  def sample(self, n):
-    with torch.no_grad():
-      batch = [torch.zeros(n, self.block_size).to(self.C.device)]
-      for i in range(self.block_size-1):
-        import ipdb; ipdb.set_trace()
-        bindist = self.forward(batch)
-        batch[0][:, i + 1] = bindist.sample()[:, i]
-    import ipdb; ipdb.set_trace()
-    return batch[0]
+from gms.autoreg.transformer import TransformerCNN
 
 class VQVAE(nn.Module):
   DC = utils.AttrDict()  # default C
   DC.z_size = 64
-  DC.vqK = 128
+  DC.vqK = 64
   DC.beta = 0.25
   DC.n_layer = 2
-  DC.n_head = 4
-  DC.n_embed = 128
+  DC.n_head = 8
+  DC.n_embed = 256
+  DC.phase = 0
 
   def __init__(self, C):
     super().__init__()
@@ -73,32 +31,41 @@ class VQVAE(nn.Module):
     # decode the discrete latent representation
     self.decoder = Decoder(C)
     self.transformerCNN = TransformerCNN(C.vqK, 7*7, C)
-
-    self.optimizer = Adam(self.parameters(), lr=C.lr)
-    self.prior_optimizer = Adam(self.transformerCNN.parameters(), lr=C.lr)
+    if C.phase == 0:
+      self.optimizer = Adam(self.parameters(), lr=C.lr)
+      for p in self.transformerCNN.parameters():
+        p.requires_grad = False
+    else:
+      path = C.logdir / 'model.pt'
+      print("LOADED MODEL", path)
+      self.load_state_dict(torch.load(path))
+      self.optimizer = Adam(self.transformerCNN.parameters(), lr=C.lr)
+      for p in self.parameters():
+        p.requires_grad = False
+      for p in self.transformerCNN.parameters():
+        p.requires_grad = True
     self.C = C
 
   def train_step(self, batch):
     x = batch[0]
-    for p in self.transformerCNN.parameters():
-      p.requires_grad = False
+    embed_loss = recon_loss = prior_loss = loss = torch.zeros(1)
     self.optimizer.zero_grad()
     embed_loss, decoded, perplexity, idxs = self.forward(x)
-    recon_loss = -tdib.Bernoulli(logits=decoded).log_prob(x).mean()
-    loss = recon_loss + embed_loss
-    loss.backward()
+    if self.C.phase == 0:
+      recon_loss = -tdib.Bernoulli(logits=decoded).log_prob(x).mean()
+      loss = recon_loss + embed_loss
+      loss.backward()
+      metrics = {'loss': loss, 'recon_loss': recon_loss, 'embed_loss': embed_loss, 'perplexity': perplexity}
+    else:
+      idxs.detach()
+      one_hot = F.one_hot(idxs, self.C.vqK).float()
+      one_hot = one_hot.flatten(1,2)
+      dist = self.transformerCNN.forward(one_hot)
+      prior_loss = -dist.log_prob(one_hot).mean()
+      prior_loss.backward()
+      metrics = {'prior_loss': prior_loss}
     self.optimizer.step()
-    for p in self.transformerCNN.parameters():
-      p.requires_grad = True
-    idxs.detach()
-    self.prior_optimizer.zero_grad()
-    one_hot = F.one_hot(idxs, self.C.vqK).float()
-    one_hot = one_hot.flatten(1,2)
-    dist = self.transformerCNN.forward(one_hot)
-    prior_loss = -dist.log_prob(one_hot).mean()
-    prior_loss.backward()
-    self.prior_optimizer.step()
-    return {'loss': loss, 'recon_loss': recon_loss, 'embed_loss': embed_loss, 'prior_loss': prior_loss}
+    return metrics
 
   def forward(self, x, verbose=False):
     z_e = self.encoder(x)
@@ -107,10 +74,21 @@ class VQVAE(nn.Module):
     decoded = self.decoder(z_q)
     return embed_loss, decoded, perplexity, idxs
 
+  def sample(self, n):
+    prior_idxs = self.transformerCNN.sample(n)
+    prior_enc = self.vector_quantization.idx_to_encoding(prior_idxs)
+    prior_enc = prior_enc.reshape([n, 7, 7, -1]).permute(0, 3, 1, 2)
+    decoded = self.decoder(prior_enc)
+    return 1.0*decoded.exp() > 0.5
+
   def evaluate(self, writer, batch, epoch):
-    _, decoded, _, _ = self.forward(batch[0][:10])
-    reconmu = 1.0 * decoded.exp() > 0.5
-    utils.plot_samples('reconmu', writer, epoch, batch[0][:10], reconmu)
+    if self.C.phase == 0:
+      _, decoded, _, _ = self.forward(batch[0][:10])
+      reconmu = 1.0 * decoded.exp() > 0.5
+      utils.plot_samples('vqvae/reconmu', writer, epoch, batch[0][:10], reconmu)
+    else:
+      samples = self.sample(10)
+      utils.plot_samples('vqvae/samples', writer, epoch, batch[0][:10], samples)
     writer.flush()
 
   def loss(self, batch):
@@ -131,9 +109,7 @@ class Encoder(nn.Module):
         nn.Conv2d(H, H, 3, 1, padding=1),
         nn.ReLU(),
     )
-
   def forward(self, x):
-    out = self.net(x)
     return self.net(x)
 
 class Decoder(nn.Module):
@@ -150,10 +126,8 @@ class Decoder(nn.Module):
         nn.ReLU(),
         nn.ConvTranspose2d(H, 1, 1, 1),
     )
-
   def forward(self, x):
-    x = self.net(x)
-    return x
+    return self.net(x)
 
 class VectorQuantizer(nn.Module):
   def __init__(self, K, D, beta, C):
@@ -164,6 +138,10 @@ class VectorQuantizer(nn.Module):
     self.embedding = nn.Embedding(self.K, self.D)
     self.embedding.weight.data.uniform_(-1.0 / self.K, 1.0 / self.K)
     self.C = C
+
+  def idx_to_encoding(self, one_hots):
+    z_q = torch.matmul(one_hots, self.embedding.weight)
+    return z_q
 
   def forward(self, z):
     # reshape z -> (batch, height, width, channel) and flatten

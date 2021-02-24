@@ -8,6 +8,7 @@ from gms import utils
 
 class VAE(nn.Module):
   DC = utils.AttrDict() # default C
+  DC.z_size = 128
   def __init__(self, C):
     super().__init__()
     self.encoder = Encoder(C.z_size, C)

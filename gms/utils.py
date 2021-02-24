@@ -8,6 +8,16 @@ import torch
 import numpy as np
 import yaml
 
+def args_type(default):
+  if isinstance(default, bool):
+    return lambda x: bool(['False', 'True'].index(x))
+  if isinstance(default, int):
+    return lambda x: float(x) if ('e' in x or '.' in x) else int(x)
+  if isinstance(default, pathlib.Path):
+    return lambda x: pathlib.Path(x).expanduser()
+  return type(default)
+
+
 def count_vars(module):
   return sum([np.prod(p.shape) for p in module.parameters()])
 
@@ -40,18 +50,17 @@ def plot_samples(name, writer, i, *args):
   plt.imsave('test.png', img)
   writer.add_image(name, img[..., None], i, dataformats='HWC')
 
-def load_mnist(bs):
+def load_mnist(bs, binarize=True):
   from torchvision import transforms
   from torchvision.datasets import MNIST
   import torch.utils.data as data
 
-  transform = transforms.Compose([
-      transforms.ToTensor(),
-      lambda x: (x > 0.5).float()
-  ])
-  #transform = transforms.Compose([
-  #    transforms.ToTensor(),
-  #    transforms.Normalize(mean=(0.1307, ), std=(0.3081, ))])
+  tfs = [transforms.ToTensor()]
+  if binarize:
+    tfs += [lambda x: (x > 0.5).float()]
+  else:
+    tfs += [lambda x: x.float()]
+  transform = transforms.Compose(tfs)
   train_dset = MNIST('data', transform=transform, train=True, download=True)
   test_dset = MNIST('data', transform=transform, train=False, download=True)
 

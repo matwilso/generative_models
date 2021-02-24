@@ -44,6 +44,27 @@ def append_location(x):
   XY = torch.stack(torch.meshgrid(torch.linspace(0, 1, x.shape[-2]), torch.linspace(0, 1, x.shape[-1])), 0)
   return torch.cat([x, XY[None].repeat_interleave(x.shape[0], 0).to(x.device)], 1)
 
+class CategoricalHead(nn.Module):
+  """take logits and produce a multinomial distribution independently"""
+  def __init__(self, in_n, out_n, C):
+    super().__init__()
+    self.C = C
+    self.layer = nn.Linear(in_n, out_n)
+  def forward(self, x, past_o=None):
+    x = self.layer(x)
+    return tdib.Multinomial(logits=x)
+
+class BinaryHead(nn.Module):
+  """take logits and produce a bernoulli distribution independently"""
+  def __init__(self, in_n, out_n, C):
+    super().__init__()
+    self.C = C
+    self.layer = nn.Linear(in_n, out_n)
+  def forward(self, x, past_o=None):
+    x = self.layer(x)
+    return tdib.Bernoulli(logits=x)
+
+
 class CausalSelfAttention(nn.Module):
   """
   A vanilla multi-head masked self-attention layer with a projection at the end.
@@ -99,6 +120,47 @@ class Block(nn.Module):
     x = x + self.attn(self.ln1(x))
     x = x + self.mlp(self.ln2(x))
     return x
+
+class TransformerCNN(nn.Module):
+  """  the full GPT language model, with a context size of block_size """
+  def __init__(self, in_size, block_size, C):
+    super().__init__()
+    self.block_size = block_size
+    self.in_size = in_size
+    self.pos_emb = nn.Parameter(torch.zeros(1, self.block_size, C.n_embed))
+    self.embed = nn.Linear(in_size, C.n_embed, bias=False)
+    self.blocks = nn.Sequential(*[Block(block_size, C) for _ in range(C.n_layer)])
+    self.ln_f = nn.LayerNorm(C.n_embed)
+    self.dist_head = CategoricalHead(C.n_embed, in_size, C)
+    self.C = C
+
+  def forward(self, x):
+    BS, T, C = x.shape
+    # SHIFT RIGHT (add a padding on the left) so you can't see yourself 
+    x = torch.cat([torch.zeros(BS, 1, C).to(self.C.device), x[:, :-1]], dim=1)
+    # forward the GPT model
+    x = self.embed(x)
+    x += self.pos_emb # each position maps to a (learnable) vector
+    # add padding on left so that we can't see ourself.
+    x = self.blocks(x)
+    logits = self.ln_f(x)
+    return self.dist_head(logits)
+
+  def sample(self, n):
+    with torch.no_grad():
+      # sample, but the first in the block will stay zero
+      batch = torch.zeros(n, self.block_size, self.in_size).to(self.C.device)
+      for i in range(self.block_size):
+        dist = self.forward(batch)
+        batch[:,i] = dist.sample()[:,i]
+      #for i in range(self.block_size-1):
+      #  dist = self.forward(batch)
+      #  batch[:, i + 1] = dist.sample()[:, i]
+      ## shift and do the last step again to get a full sample.
+      #batch = torch.cat([batch[:,1:], batch[:,0:1]], 1)
+      #dist = self.forward(batch)
+      #batch[:, -1] = dist.sample()[:, -2]
+    return batch
 
 
 class GPT(nn.Module):
