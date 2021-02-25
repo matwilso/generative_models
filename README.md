@@ -8,11 +8,10 @@ Beyond that, my goal is to provide a central source of many of the important fun
 
 Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course,
 which I have been following. Many of these implementations will not scale far beyond MNIST, but they are just meant to represent the fundamental ideas
-in a concise way. And sometimes it's just interesting to see what can be made to work well.
+in a concise way. And sometimes it's just interesting to see what can be made to work well on MNIST.
 
-I have a central training script ([main.py](./gms/main.py)) that can load any of the models, train
+There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard.
-
 
 **Contents**
 - [Autoregressive models](#autoregressive-models)
