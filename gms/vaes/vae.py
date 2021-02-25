@@ -11,7 +11,7 @@ class VAE(utils.GM):
   DC.beta = 1.0
 
   def __init__(self, C):
-    super().__init__()
+    super().__init__(C)
     self.encoder = Encoder(C.z_size, C)
     self.decoder = Decoder(C.z_size, C)
     self.optimizer = Adam(self.parameters(), lr=C.lr)

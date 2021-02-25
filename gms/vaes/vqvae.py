@@ -21,7 +21,7 @@ class VQVAE(utils.GM):
   DC.prior_lr = 1e-3
 
   def __init__(self, C):
-    super().__init__()
+    super().__init__(C)
     H = C.hidden_size
     # encoder -> VQ -> decoder
     self.encoder = Encoder(C)

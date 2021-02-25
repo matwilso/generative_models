@@ -3,7 +3,7 @@
 Implementations of fundamental deep generative models.
 <!--, along with descriptions using simple language.-->
 
-Partially these are my notes to understand the algorithms and I make them public to incentivize myself to understand them clearly.
+Partially these are my notes to understand the algorithms and I make them public to incentivize myself to understand them clearly and make the code clean.
 Beyond that, my goal is to provide a central source of many of the important fundamental generative models, with code that is as simple as possible to understand.
 
 Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course,
@@ -11,8 +11,10 @@ which I have been following. Many of these implementations will not scale far be
 in a concise way. And sometimes it's just interesting to see what can be made to work well.
 
 I have a central training script ([main.py](./gms/main.py)) that can load any of the models, train
-it on MNIST, and log metrics to tensorboard.
+them on MNIST, and log metrics to tensorboard.
 
+
+**Contents**
 - [Autoregressive models](#autoregressive-models)
 - [Variational Autoencoders (VAEs)](#variational-autoencoders-vaes)
 - [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
@@ -24,7 +26,6 @@ git clone https://github.com/matwilso/generative_models.git
 cd generative_models/
 pip install -e .
 pip install -r requirements.txt
-cd gms/
 ```
 
 ## [Autoregressive models](gms/autoregs)

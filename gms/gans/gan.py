@@ -15,7 +15,7 @@ class GAN(utils.GM):
   DC.lr = 1e-4
 
   def __init__(self, C):
-    super().__init__()
+    super().__init__(C)
     self.disc = Discriminator(C)
     self.gen = Generator(C)
     self.disc_optim = Adam(self.disc.parameters(), lr=C.lr, betas=(0.5, 0.999))
