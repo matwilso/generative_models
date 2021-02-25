@@ -34,15 +34,14 @@ class VAE(utils.GM):
       z = torch.randn(n, self.C.z_size).to(self.C.device)
       return self._decode(z)
 
-  def evaluate(self, writer, batch, epoch):
+  def evaluate(self, writer, x, epoch):
     """run samples and other evaluations"""
     samples = self.sample(25)
-    writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
-    truths = batch[:8].cpu()
-    z_post = self.encoder(batch[:8])
+    writer.add_image('vae/samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
+    z_post = self.encoder(x[:8])
     recon = self._decode(z_post.mean)
-    recon = torch.cat([truths, recon], 0)
-    writer.add_image('reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
+    recon = torch.cat([x[:8].cpu(), recon], 0)
+    writer.add_image('vae/reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
     writer.flush()
 
   def _decode(self, x):

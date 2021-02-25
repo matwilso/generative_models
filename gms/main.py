@@ -16,7 +16,7 @@ C.model = 'vae'
 C.bs = 64
 C.hidden_size = 256
 C.device = 'cuda'
-C.done_n = 200
+C.num_epochs = 50
 C.save_n = 5
 C.beta = 1.0
 C.logdir = pathlib.Path('./logs/')
@@ -72,6 +72,7 @@ if __name__ == '__main__':
             logger[C.model+'/test/' + key] += [test_metrics[key].detach().cpu()]
       else:
         test_batch = next(iter(test_ds))
+        test_batch[0], test_batch[1] = test_batch[0].to(C.device), test_batch[1].to(C.device)
       # run the model specific evaluate function. usually draws samples and creates other relevant visualizations.
       model.evaluate(writer, test_batch[0], epoch)
     model.train()
@@ -82,5 +83,5 @@ if __name__ == '__main__':
       path = C.logdir / 'model.pt'
       print("SAVED MODEL", path)
       torch.save(model.state_dict(), path)
-    if epoch >= C.done_n:
+    if epoch >= C.num_epochs:
       break

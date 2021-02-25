@@ -55,10 +55,10 @@ class GAN(nn.Module):
 
   def evaluate(self, writer, x, epoch):
     samples = self.sample(25)
-    writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
+    writer.add_image('gan/samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
     # fixed noise
     fixed_sample = self.gen(self.fixed_noise)
-    writer.add_image('fixed_noise', utils.combine_imgs(fixed_sample, 5, 5)[None], epoch)
+    writer.add_image('gan/fixed_noise', utils.combine_imgs(fixed_sample, 5, 5)[None], epoch)
     writer.flush()
 
 class Generator(nn.Module):

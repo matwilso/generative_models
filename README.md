@@ -9,39 +9,6 @@ of the fundamentals of deep generative modeling.
 Many of these implementations will not scale far beyond MNIST, but they are just meant to represent the fundamental ideas
 in a concise way. Or just because it's interesting to see what can be made to work well.
 
-| Genereative models |  |  |  |
-|-|-|-|-|
-|  |  |  |  |
-| Recurrent ||||
-| RNN | this  | is | test |
-| Masked |  |  |  |
-| MADE | so | is | this |
-| Wavenet | or | am | i |
-
-<table style="width:100%">
-  <tr>
-    <th>Generative Models</th>
-  </tr>
-  <tr>
-    <th>Autoregressive models</td>
-  </tr>
-  <tr>
-    <td>RNN</td>
-    <td>this</td>
-    <td>are</td>
-    <td>plots</td>
-  </tr>
-  <tr>
-    <th>Masked models</td>
-  </tr>
-  <tr>
-    <td>MADE</td>
-    <td>this</td>
-    <td>are</td>
-    <td>plots</td>
-  </tr>
-</table>
-
 ## Autoregressive models
 
 ### Recurrent models
@@ -56,8 +23,16 @@ in a concise way. Or just because it's interesting to see what can be made to wo
 
 ## Variational Autoencoders (VAES)
 
-- [VAE (vanilla)]
-- [VQ-VAE]
+### VAE (vanilla)
+```
+python main.py --model=vae --logdir=logs/vae/
+```
+### VQ-VAE 
+
+```
+python main.py --model=vqvae --logdir=logs/vqvae/ --num_epochs=50 --phase=0 # train encoder, decoder
+python main.py --model=vqvae --logdir=logs/vqvae/ --num_epochs=50 --phase=1 # train prior to produce the discrete codes to enable sampling
+```
 
 ## GANs
 - [GAN (vanilla)]. Somewhat based off DC-GAN, but scaled down to MNIST
