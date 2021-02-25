@@ -8,7 +8,7 @@ from gms import utils
 # Based on DCGAN, but scaled down to 28x28 MNIST
 # mostly taken from https://github.com/pytorch/examples/blob/6c8e2bab4d45f2386929c83bb4480c18d2b660fd/dcgan/main.py
 
-class GAN(nn.Module):
+class GAN(utils.GM):
   DC = utils.AttrDict()  # default C
   DC.noise_size = 128
   DC.binarize = 0 # don't binarize the data for GAN, because it's easier to deal with this way.
@@ -16,7 +16,6 @@ class GAN(nn.Module):
 
   def __init__(self, C):
     super().__init__()
-    self.C = C
     self.disc = Discriminator(C)
     self.gen = Generator(C)
     self.disc_optim = Adam(self.disc.parameters(), lr=C.lr, betas=(0.5, 0.999))
@@ -54,17 +53,15 @@ class GAN(nn.Module):
 
   def evaluate(self, writer, x, epoch):
     samples = self.sample(25)
-    writer.add_image('gan/samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
+    writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
     # fixed noise
     fixed_sample = self.gen(self.fixed_noise)
-    writer.add_image('gan/fixed_noise', utils.combine_imgs(fixed_sample, 5, 5)[None], epoch)
-    writer.flush()
+    writer.add_image('fixed_noise', utils.combine_imgs(fixed_sample, 5, 5)[None], epoch)
 
 class Generator(nn.Module):
   def __init__(self, C):
     super().__init__()
-    self.C = C
-    H = self.C.hidden_size
+    H = C.hidden_size
     self.net = nn.Sequential(
         nn.ConvTranspose2d(self.C.noise_size, H, 5, 1),
         nn.BatchNorm2d(H),
@@ -86,8 +83,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
   def __init__(self, C):
     super().__init__()
-    self.C = C
-    H = self.C.hidden_size
+    H = C.hidden_size
     self.net = nn.Sequential(
         nn.Conv2d(1, H, 3, 2),
         nn.LeakyReLU(),

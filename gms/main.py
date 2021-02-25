@@ -1,3 +1,4 @@
+import time
 import pathlib
 import argparse
 import sys
@@ -32,19 +33,23 @@ if __name__ == '__main__':
   tempC, _ = parser.parse_known_args()
   # SETUP
   Model = {
-    'vae': gms.VAE,
-    'vqvae': gms.VQVAE,
-    'gan': gms.GAN,
-    'transformer': gms.TransformerCNN,
+    'rnn': gms.autoregs.RNN,
+    'made': gms.autoregs.MADE,
+    'wavenet': gms.autoregs.Wavenet,
+    'pixelcnn': gms.autoregs.PixelCNN,
+    'gatedcnn': gms.autoregs.GatedPixelCNN,
+    'transformer': gms.autoregs.TransformerCNN,
+    'vae': gms.vaes.VAE,
+    'vqvae': gms.vaes.VQVAE,
+    'gan': gms.gans.GAN,
   }[tempC.model]
-  defaults = {}
+  defaults = {'logdir': C.logdir / C.model}
   for key, value in Model.DC.items():
     defaults[key] = value
     if key not in tempC:
       parser.add_argument(f'--{key}', type=type(value), default=value)
   parser.set_defaults(**defaults)
   C = parser.parse_args()
-  C.logdir = C.logdir / C.model
   model = Model(C=C).to(C.device)
   writer = SummaryWriter(C.logdir)
   logger = utils.dump_logger({}, writer, 0, C)
@@ -53,13 +58,15 @@ if __name__ == '__main__':
 
   # TRAINING LOOP 
   for epoch in count():
-    ## TRAIN
+    # TRAIN
+    train_time = time.time()
     for batch in train_ds:
       batch[0], batch[1] = batch[0].to(C.device), batch[1].to(C.device)
       # TODO: see if we can just use loss and write the gan such that it works.
       metrics = model.train_step(batch[0])
       for key in metrics:
         logger[C.model+'/'+key] += [metrics[key].detach().cpu()]
+    logger['dt/train'] = time.time()-train_time
     # TEST
     model.eval()
     with torch.no_grad():
@@ -74,7 +81,9 @@ if __name__ == '__main__':
         test_batch = next(iter(test_ds))
         test_batch[0], test_batch[1] = test_batch[0].to(C.device), test_batch[1].to(C.device)
       # run the model specific evaluate function. usually draws samples and creates other relevant visualizations.
+      eval_time = time.time()
       model.evaluate(writer, test_batch[0], epoch)
+      logger['dt/evaluate'] = time.time()-eval_time
     model.train()
     # LOGGING
     logger['num_vars'] = num_vars

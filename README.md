@@ -1,13 +1,18 @@
 # generative_models
 
-Implementations of basic generative models for MNIST, along with descriptions using simple language.
+Implementations of fundamental deep generative models.
+<!--, along with descriptions using simple language.-->
 
-Draws on lectures and demos from Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course.
-This repo is partially my notes from that class and partially meant to be a place to find simple implementations and clear explanations
-of the fundamentals of deep generative modeling.
+Partially these are my notes and I make them public as self-motivation to make sure I understand them and make the code clean.
+Beyond that, the goal is to provide a central source of many of the important fundamental generative models, with
+code that is as simple as possible to understand.
 
-Many of these implementations will not scale far beyond MNIST, but they are just meant to represent the fundamental ideas
-in a concise way. Or just because it's interesting to see what can be made to work well.
+Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course,
+which I have been following. Many of these implementations will not scale far beyond MNIST, but they are just meant to represent the fundamental ideas
+in a concise way. And somewhat just because it's interesting to see what can be made to work well.
+
+I have a central training script ([main.py](./gms/main.py)) that can load any of the models, train
+it on MNIST, and log metrics to tensorboard.
 
 - [Autoregressive models](#autoregressive-models)
 - [Variational Autoencoders (VAEs)](#variational-autoencoders-vaes)
@@ -30,7 +35,6 @@ cd gms/
 python main.py --model=rnn 
 ```
 #### [MADE](gms/autoregs/made.py)
-Masked Autoencoder for Distribution Estimation. I don't like MADE.
 ```
 python main.py --model=made 
 ```
@@ -68,6 +72,10 @@ This leads to worse samples because the codes are constantly shifting and the Pi
 the code and lets you train it all in a single run.
 And we also use our TransformerCNN, instead of our PixelCNN.
 
+Also VQ-VAE usually produces codes in a 32x32 space, which is larger than an MNIST image lol.
+We downsample to 7x7 codes, where K=64, so it is 64-way categorical. This still amounts 
+to 64^49 possible values that the codes can take on. So you could say it's still pretty expressive.
+
 ```
 python main.py --model=vqvae 
 ```
@@ -86,3 +94,7 @@ python main.py --model=gan
 // TODO: add class condition
 // TODO: try interpolation
 // TODO: visualizations.
+// TODO: bits/dim for autoreg methods. 
+// TODO: FID or something for comparing sample qualities head to head.
+// TODO: head-to-head training times and such, both generally and specifically for autoregs, which have a very similar structure.
+// TODO: tests.

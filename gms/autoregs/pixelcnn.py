@@ -1,40 +1,61 @@
-import torch.nn as nn
-import sys
-from collections import defaultdict
 import numpy as np
-from torch.utils.tensorboard import SummaryWriter
-
-import matplotlib.pyplot as plt
-import torchvision
 from torch.optim import Adam
-from itertools import chain, count
 import torch
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
-
 from gms import utils
 
-H = utils.AttrDict()
-H.bs = 32
-H.z_size = 128
-H.bn = 0
-H.device = 'cuda'
-H.log_n = 1000
-H.done_n = 20
-H.b = 0.1
-H.logdir = './logs/'
-H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
-H.lr = 1e-4
-H.class_cond = 0
-H.hidden_size = 512
-H.append_loc = 1
-H.overfit_batch = 0
-H.n_filters = 64
-H.n_layers = 5
-H.kernel_size = 7
-H.use_resblock = 0
+class PixelCNN(utils.Autoreg):
+  DC = utils.AttrDict()
+  DC.n_filters = 64
+  DC.n_layers = 5
+  DC.kernel_size = 7
+  DC.use_resblock = 0
+  def __init__(self, C):
+    super().__init__(C)
+    assert C.n_layers >= 2
+    input_shape = [1, 28, 28]
+    n_channels = input_shape[0]
 
+    if C.use_resblock:
+      def block_init(): return ResBlock(C.n_filters)
+    else:
+      def block_init(): return MaskConv2d('B', C.n_filters, C.n_filters, kernel_size=C.kernel_size, padding=C.kernel_size // 2)
+
+    model = nn.ModuleList([MaskConv2d('A', n_channels, C.n_filters, kernel_size=C.kernel_size, padding=C.kernel_size // 2)])
+    for _ in range(C.n_layers):
+      model.append(LayerNorm(C.n_filters))
+      model.extend([nn.ReLU(), block_init()])
+    model.extend([nn.ReLU(), MaskConv2d('B', C.n_filters, C.n_filters, 1)])
+    model.extend([nn.ReLU(), MaskConv2d('B', C.n_filters, n_channels, 1)])
+    self.net = model
+    self.input_shape = input_shape
+    self.n_channels = n_channels
+
+  def forward(self, x):
+    batch_size = x.shape[0]
+    x = x
+    for layer in self.net:
+      if isinstance(layer, MaskConv2d) or isinstance(layer, ResBlock):
+        x = layer(x)
+      else:
+        x = layer(x)
+    return tdib.Bernoulli(logits=x.view(batch_size, *self.input_shape))
+
+  def loss(self, x):
+    loss = -self.forward(x).log_prob(x).mean()
+    return loss, {'loss': loss}
+
+  def sample(self, n):
+    steps = []
+    batch = torch.zeros(n, 1, 28, 28).to(self.C.device)
+    for r in range(28):
+      for c  in range(28):
+        dist = self.forward(batch)
+        batch[...,r,c] = dist.sample()[...,r,c]
+        steps += [batch.cpu()]
+    return batch.cpu(), steps
 
 class MaskConv2d(nn.Conv2d):
   def __init__(self, mask_type, *args, **kwargs):
@@ -85,55 +106,3 @@ class LayerNorm(nn.LayerNorm):
     x_shape = x.shape
     x = super().forward(x)
     return x.permute(0, 3, 1, 2).contiguous()
-
-class PixelCNN(nn.Module):
-  def __init__(self, H):
-    super().__init__()
-    assert H.n_layers >= 2
-    self.H = H
-    input_shape = [1, 28, 28]
-    n_channels = input_shape[0]
-
-    if H.use_resblock:
-      def block_init(): return ResBlock(H.n_filters)
-    else:
-      def block_init(): return MaskConv2d('B', H.n_filters, H.n_filters, kernel_size=H.kernel_size, padding=H.kernel_size // 2)
-
-    model = nn.ModuleList([MaskConv2d('A', n_channels, H.n_filters, kernel_size=H.kernel_size, padding=H.kernel_size // 2)])
-    for _ in range(H.n_layers):
-      model.append(LayerNorm(H.n_filters))
-      model.extend([nn.ReLU(), block_init()])
-    model.extend([nn.ReLU(), MaskConv2d('B', H.n_filters, H.n_filters, 1)])
-    model.extend([nn.ReLU(), MaskConv2d('B', H.n_filters, n_channels, 1)])
-    self.net = model
-    self.input_shape = input_shape
-    self.n_channels = n_channels
-
-  def forward(self, x):
-    batch_size = x.shape[0]
-    x = x
-    for layer in self.net:
-      if isinstance(layer, MaskConv2d) or isinstance(layer, ResBlock):
-        x = layer(x)
-      else:
-        x = layer(x)
-    return x.view(batch_size, *self.input_shape)
-
-  def nll(self, x):
-    x = x[0]
-    out = self.forward(x)
-    return F.binary_cross_entropy_with_logits(out, x)
-    # return F.cross_entropy(self.forward(x), x.long())
-
-  def sample(self, n):
-    samples = torch.zeros(n, *self.input_shape).cuda()
-    imgs = []
-    with torch.no_grad():
-      for r in range(self.input_shape[1]):
-        for c in range(self.input_shape[2]):
-          logits = self.forward(samples)[:, :, r, c]
-          probs = torch.sigmoid(logits)
-          samples[:, :, r, c] = torch.bernoulli(probs)
-          imgs += [samples.cpu()]
-    imgs = np.stack([img.numpy() for img in imgs], axis=1)
-    return samples.cpu(), imgs

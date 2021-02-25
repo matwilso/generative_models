@@ -10,7 +10,7 @@ import numpy as np
 from gms import utils
 from gms.autoregs.transformer import TransformerCNN
 
-class VQVAE(nn.Module):
+class VQVAE(utils.GM):
   DC = utils.AttrDict()  # default C
   DC.vqD = 64
   DC.vqK = 64
@@ -28,10 +28,9 @@ class VQVAE(nn.Module):
     self.vq = VectorQuantizer(C.vqK, C.vqD, C.beta, C)
     self.decoder = Decoder(C)
     # prior. this is usually learned after the other stuff has been trained, but we do it all in one swoop.
-    self.transformerCNN = TransformerCNN(C.vqK, 7*7, C)
+    self.transformerCNN = TransformerCNN(in_size=C.vqK, block_size=7*7, head='cat', C=C)
     self.optimizer = Adam(self.parameters(), lr=C.lr)
     self.prior_optimizer = Adam(self.transformerCNN.parameters(), lr=C.prior_lr, betas=(0.5, 0.999))
-    self.C = C
 
   def train_step(self, x):
     # ENC-VQ-DEC
@@ -67,16 +66,14 @@ class VQVAE(nn.Module):
     _, decoded, _, _ = self.forward(x[:8])
     recon = 1.0 * (decoded.exp() > 0.5).cpu()
     recon = torch.cat([x[:8].cpu(), recon], 0)
-    writer.add_image('vqvae/reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
+    writer.add_image('reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
     samples = self.sample(25)
-    writer.add_image('vqvae/samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
-    writer.flush()
+    writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
 
 class Encoder(nn.Module):
   def __init__(self, C):
     super().__init__()
-    self.C = C
-    H = self.C.hidden_size
+    H = C.hidden_size
     self.net = nn.Sequential(
         nn.Conv2d(1, H, 3, 2, padding=1),
         nn.ReLU(),
@@ -93,8 +90,7 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
   def __init__(self, C):
     super().__init__()
-    self.C = C
-    H = self.C.hidden_size
+    H = C.hidden_size
     self.net = nn.Sequential(
         nn.ConvTranspose2d(C.vqD, H, 6, 3),
         nn.ReLU(),
@@ -116,7 +112,6 @@ class VectorQuantizer(nn.Module):
     self.beta = beta
     self.embedding = nn.Embedding(self.K, self.D)
     self.embedding.weight.data.uniform_(-1.0 / self.K, 1.0 / self.K)
-    self.C = C
 
   def idx_to_encoding(self, one_hots):
     z_q = torch.matmul(one_hots, self.embedding.weight)
@@ -130,7 +125,7 @@ class VectorQuantizer(nn.Module):
     d = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + torch.sum(self.embedding.weight**2, dim=1) - 2 * torch.matmul(z_flattened, self.embedding.weight.t())
     # find closest encodings
     min_encoding_indices = torch.argmin(d, dim=1).unsqueeze(1)
-    min_encodings = torch.zeros(min_encoding_indices.shape[0], self.K).to(self.C.device)
+    min_encodings = torch.zeros(min_encoding_indices.shape[0], self.K).to(z.device)
     min_encodings.scatter_(1, min_encoding_indices, 1)
     # get quantized latent vectors
     z_q = torch.matmul(min_encodings, self.embedding.weight).view(z.shape)

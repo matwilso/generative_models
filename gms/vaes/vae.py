@@ -12,7 +12,6 @@ class VAE(utils.GM):
 
   def __init__(self, C):
     super().__init__()
-    self.C = C
     self.encoder = Encoder(C.z_size, C)
     self.decoder = Decoder(C.z_size, C)
     self.optimizer = Adam(self.parameters(), lr=C.lr)
@@ -37,12 +36,11 @@ class VAE(utils.GM):
   def evaluate(self, writer, x, epoch):
     """run samples and other evaluations"""
     samples = self.sample(25)
-    writer.add_image('vae/samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
+    writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
     z_post = self.encoder(x[:8])
     recon = self._decode(z_post.mean)
     recon = torch.cat([x[:8].cpu(), recon], 0)
-    writer.add_image('vae/reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
-    writer.flush()
+    writer.add_image('reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
 
   def _decode(self, x):
     return 1.0 * (self.decoder(x).exp() > 0.5).cpu()
@@ -50,7 +48,6 @@ class VAE(utils.GM):
 class Encoder(nn.Module):
   def __init__(self, out_size, C):
     super().__init__()
-    self.C = C
     H = self.C.hidden_size
     self.net = nn.Sequential(
         nn.Conv2d(1, H, 3, 2),
@@ -74,8 +71,7 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
   def __init__(self, in_size, C):
     super().__init__()
-    self.C = C
-    H = self.C.hidden_size
+    H = C.hidden_size
     self.net = nn.Sequential(
         nn.ConvTranspose2d(in_size, H, 5, 1),
         nn.ReLU(),

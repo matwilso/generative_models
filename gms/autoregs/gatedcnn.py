@@ -1,40 +1,39 @@
-import torch.nn as nn
-import sys
-from collections import defaultdict
 import numpy as np
-from torch.utils.tensorboard import SummaryWriter
-
-import matplotlib.pyplot as plt
-import torchvision
 from torch.optim import Adam
-from itertools import chain, count
 import torch
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
-
 from gms import utils
-from og_pixel_cnn import LayerNorm, MaskConv2d
+from gms.autoregs.pixelcnn import PixelCNN, LayerNorm, MaskConv2d
 
-H = utils.AttrDict()
-H.bs = 32
-H.z_size = 128
-H.bn = 0
-H.device = 'cuda'
-H.log_n = 1000
-H.done_n = 20
-H.b = 0.1
-H.logdir = './logs/'
-H.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
-H.lr = 1e-4
-H.class_cond = 0
-H.hidden_size = 512
-H.append_loc = 1
-H.overfit_batch = 0
-H.n_filters = 64
-H.n_layers = 5
-H.kernel_size = 7
-H.use_resblock = 0
+# GatedPixelCNN using horizontal and vertical stacks to fix blind-spot
+class GatedPixelCNN(PixelCNN):
+  DC = utils.AttrDict()
+  DC.n_filters = 64
+  DC.n_layers = 5
+  DC.kernel_size = 7
+  DC.use_resblock = 0
+  def __init__(self, C):
+    super().__init__(C)
+    input_shape = (1,28,28)
+    self.n_channels = input_shape[0]
+    self.input_shape = input_shape
+    self.in_conv = MaskConv2d('A', self.n_channels, C.n_filters, 7, padding=3)
+    model = []
+    for _ in range(C.n_layers - 2):
+      model.extend([nn.ReLU(), GatedConv2d('B', C.n_filters, C.n_filters, 7, padding=3)])
+      model.append(StackLayerNorm(C.n_filters))
+    self.out_conv = MaskConv2d('B', C.n_filters, self.n_channels, 7, padding=3)
+    self.net = nn.Sequential(*model)
+
+  def forward(self, x):
+    batch_size = x.shape[0]
+    x = x
+    x = self.in_conv(x)
+    x = self.net(torch.cat((x, x), dim=1)).chunk(2, dim=1)[1]
+    x = self.out_conv(x)
+    return tdib.Bernoulli(logits=x.view(batch_size, *self.input_shape))
 
 class StackLayerNorm(nn.Module):
   def __init__(self, n_filters):
@@ -97,43 +96,3 @@ class GatedConv2d(nn.Module):
 
     return torch.cat((vx, hx), dim=1)
 
-# GatedPixelCNN using horizontal and vertical stacks to fix blind-spot
-class GatedPixelCNN(nn.Module):
-  def __init__(self, H, n_layers=5, n_filters=120):
-    super().__init__()
-    self.H = H
-    input_shape = (1,28,28)
-    self.n_channels = input_shape[0]
-    self.input_shape = input_shape
-    self.in_conv = MaskConv2d('A', self.n_channels, n_filters, 7, padding=3)
-    model = []
-    for _ in range(n_layers - 2):
-      model.extend([nn.ReLU(), GatedConv2d('B', n_filters, n_filters, 7, padding=3)])
-      model.append(StackLayerNorm(n_filters))
-    self.out_conv = MaskConv2d('B', n_filters, self.n_channels, 7, padding=3)
-    self.net = nn.Sequential(*model)
-
-  def forward(self, x):
-    batch_size = x.shape[0]
-    x = x
-    x = self.in_conv(x)
-    x = self.net(torch.cat((x, x), dim=1)).chunk(2, dim=1)[1]
-    x = self.out_conv(x)
-    return x.view(batch_size, *self.input_shape)
-
-  def nll(self, x):
-    x = x[0]
-    return F.binary_cross_entropy_with_logits(self.forward(x), x)
-
-  def sample(self, n):
-    samples = torch.zeros(n, *self.input_shape).cuda()
-    imgs = []
-    with torch.no_grad():
-      for r in range(self.input_shape[1]):
-        for c in range(self.input_shape[2]):
-          logits = self.forward(samples)[:, :, r, c]
-          probs = torch.sigmoid(logits)
-          samples[:, :, r, c] = torch.bernoulli(probs)
-          imgs += [samples.cpu()]
-    imgs = np.stack([img.numpy() for img in imgs], axis=1)
-    return samples.cpu(), imgs
