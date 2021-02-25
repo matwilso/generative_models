@@ -18,52 +18,37 @@ class VQVAE(nn.Module):
   DC.n_layer = 2
   DC.n_head = 8
   DC.n_embed = 256
-  DC.phase = 0
+  DC.prior_lr = 1e-3
 
   def __init__(self, C):
     super().__init__()
     H = C.hidden_size
-    # encoder -> VQ -> decoder, learned in phase 0
+    # encoder -> VQ -> decoder
     self.encoder = Encoder(C)
     self.vq = VectorQuantizer(C.vqK, C.vqD, C.beta, C)
     self.decoder = Decoder(C)
-    # prior, learned in phase 1
+    # prior. this is usually learned after the other stuff has been trained, but we do it all in one swoop.
     self.transformerCNN = TransformerCNN(C.vqK, 7*7, C)
-    if C.phase == 0:
-      self.optimizer = Adam(self.parameters(), lr=C.lr)
-      for p in self.transformerCNN.parameters():
-        p.requires_grad = False
-    else:
-      # load weights from phase 1
-      path = C.logdir / 'model.pt'
-      print("LOADED MODEL", path)
-      self.load_state_dict(torch.load(path))
-      self.optimizer = Adam(self.transformerCNN.parameters(), lr=C.lr)
-      for p in self.parameters():
-        p.requires_grad = False
-      for p in self.transformerCNN.parameters():
-        p.requires_grad = True
+    self.optimizer = Adam(self.parameters(), lr=C.lr)
+    self.prior_optimizer = Adam(self.transformerCNN.parameters(), lr=C.prior_lr, betas=(0.5, 0.999))
     self.C = C
 
   def train_step(self, x):
-    embed_loss = recon_loss = prior_loss = loss = torch.zeros(1)
-    self.optimizer.zero_grad()
+    # ENC-VQ-DEC
+    self.zero_grad()
     embed_loss, decoded, perplexity, idxs = self.forward(x)
-    if self.C.phase == 0: # encoder-decoder training phase
-      recon_loss = -tdib.Bernoulli(logits=decoded).log_prob(x).mean()
-      loss = recon_loss + embed_loss
-      loss.backward()
-      metrics = {'loss': loss, 'recon_loss': recon_loss, 'embed_loss': embed_loss, 'perplexity': perplexity}
-    else: # prior training phase
-      idxs.detach()
-      one_hot = F.one_hot(idxs, self.C.vqK).float()
-      one_hot = one_hot.flatten(1,2)
-      dist = self.transformerCNN.forward(one_hot)
-      prior_loss = -dist.log_prob(one_hot).mean()
-      prior_loss.backward()
-      metrics = {'prior_loss': prior_loss}
+    recon_loss = -tdib.Bernoulli(logits=decoded).log_prob(x).mean()
+    loss = recon_loss + embed_loss
+    loss.backward()
     self.optimizer.step()
-    return metrics
+    # PRIOR
+    self.zero_grad()
+    code_idxs = F.one_hot(idxs.detach(), self.C.vqK).float().flatten(1,2)
+    dist = self.transformerCNN.forward(code_idxs)
+    prior_loss = -dist.log_prob(code_idxs).mean()
+    prior_loss.backward()
+    self.prior_optimizer.step()
+    return {'loss': loss, 'recon_loss': recon_loss, 'embed_loss': embed_loss, 'perplexity': perplexity, 'prior_loss': prior_loss}
 
   def forward(self, x):
     z_e = self.encoder(x)
@@ -72,22 +57,19 @@ class VQVAE(nn.Module):
     return embed_loss, decoded, perplexity, idxs
 
   def sample(self, n):
-    """requires a trained prior"""
-    prior_idxs = self.transformerCNN.sample(n)
+    prior_idxs = self.transformerCNN.sample(n)[0]
     prior_enc = self.vq.idx_to_encoding(prior_idxs)
     prior_enc = prior_enc.reshape([n, 7, 7, -1]).permute(0, 3, 1, 2)
     decoded = self.decoder(prior_enc)
     return 1.0*(decoded.exp() > 0.5).cpu()
 
   def evaluate(self, writer, x, epoch):
-    if self.C.phase == 0:
-      _, decoded, _, _ = self.forward(x[:8])
-      recon = 1.0 * (decoded.exp() > 0.5).cpu()
-      recon = torch.cat([x[:8].cpu(), recon], 0)
-      writer.add_image('vqvae/reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
-    else:
-      samples = self.sample(25)
-      writer.add_image('vqvae/samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
+    _, decoded, _, _ = self.forward(x[:8])
+    recon = 1.0 * (decoded.exp() > 0.5).cpu()
+    recon = torch.cat([x[:8].cpu(), recon], 0)
+    writer.add_image('vqvae/reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
+    samples = self.sample(25)
+    writer.add_image('vqvae/samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
     writer.flush()
 
 class Encoder(nn.Module):

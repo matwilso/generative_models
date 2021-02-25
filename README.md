@@ -21,17 +21,23 @@ in a concise way. Or just because it's interesting to see what can be made to wo
 - [PixelCNN (gated/improved)]
 - [TransformerCNN] Like a PixelCNN, but uses a transformer architecture where the individual pixels are as considered tokens (28x28=784 of them for MNIST).
 
-## Variational Autoencoders (VAES)
+## Variational Autoencoders ([VAEs](./vaes/))
 
-### VAE (vanilla)
+### [VAE (vanilla)](./vaes/vae.py)
 ```
 python main.py --model=vae --logdir=logs/vae/
 ```
-### VQ-VAE 
+### [VQ-VAE](./vaes/vqvae.py)
+
+The VQ-VAE is usually trained in a two-phase process. Phase 1 trains discrete encoder and decoder. Phase 2 trains
+the prior that can produce the indexes of the latent codes, using a PixelCNN type approach.
+Instead we train everything in a single Phase.
+I am pretty sure this leads to worse samples because the codes are constantly shifting and the PixelCNN is hard to learn, but it simplifies
+the code and lets you train it in a single run.
+And we also use our TransformerCNN, instead of our PixelCNN.
 
 ```
-python main.py --model=vqvae --logdir=logs/vqvae/ --num_epochs=50 --phase=0 # train encoder, decoder
-python main.py --model=vqvae --logdir=logs/vqvae/ --num_epochs=50 --phase=1 # train prior to produce the discrete codes to enable sampling
+python main.py --model=vqvae --logdir=logs/vqvae/
 ```
 
 ## GANs

@@ -64,13 +64,12 @@ class TransformerCNN(nn.Module):
 
   def sample(self, n):
     steps = []
-    with torch.no_grad():
-      # sample, but the first in the block will stay zero
-      batch = torch.zeros(n, self.block_size, self.in_size).to(self.C.device)
-      for i in range(self.block_size):
-        dist = self.forward(batch)
-        batch[:,i] = dist.sample()[:,i]
-        steps += [batch.cpu()]
+    # sample, but the first in the block will stay zero
+    batch = torch.zeros(n, self.block_size, self.in_size).to(self.C.device)
+    for i in range(self.block_size):
+      dist = self.forward(batch)
+      batch[:,i] = dist.sample()[:,i]
+      steps += [batch.cpu()]
     return batch, steps
 
 class CausalSelfAttention(nn.Module):

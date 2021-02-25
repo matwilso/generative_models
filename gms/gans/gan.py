@@ -49,8 +49,7 @@ class GAN(nn.Module):
     return metrics
 
   def sample(self, n):
-    with torch.no_grad():
-      fake = self.gen(torch.randn(n, self.C.noise_size).to(self.C.device))
+    fake = self.gen(torch.randn(n, self.C.noise_size).to(self.C.device))
     return fake
 
   def evaluate(self, writer, x, epoch):

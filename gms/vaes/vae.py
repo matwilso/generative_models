@@ -30,9 +30,8 @@ class VAE(utils.GM):
     return loss, metrics
 
   def sample(self, n):
-    with torch.no_grad():
-      z = torch.randn(n, self.C.z_size).to(self.C.device)
-      return self._decode(z)
+    z = torch.randn(n, self.C.z_size).to(self.C.device)
+    return self._decode(z)
 
   def evaluate(self, writer, x, epoch):
     """run samples and other evaluations"""
