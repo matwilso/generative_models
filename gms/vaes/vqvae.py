@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from gms import utils
-from gms.autoreg.transformer import TransformerCNN
+from gms.autoregs.transformer import TransformerCNN
 
 class VQVAE(nn.Module):
   DC = utils.AttrDict()  # default C
@@ -148,6 +148,7 @@ class VectorQuantizer(nn.Module):
     z = z.permute(0, 2, 3, 1).contiguous()
     z_flattened = z.view(-1, self.D)
     # distances from z to embeddings e_j (z - e)^2 = z^2 + e^2 - 2 e * z
+    # TODO: why compute like this?
     d = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + torch.sum(self.embedding.weight**2, dim=1) - 2 * torch.matmul(z_flattened, self.embedding.weight.t())
     # find closest encodings
     min_encoding_indices = torch.argmin(d, dim=1).unsqueeze(1)

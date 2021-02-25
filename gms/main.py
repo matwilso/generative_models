@@ -25,7 +25,6 @@ C.lr = 3e-4
 C.class_cond = 0
 C.binarize = 1
 
-
 if __name__ == '__main__':
   # PARSE CMD LINE
   parser = argparse.ArgumentParser()
@@ -37,6 +36,7 @@ if __name__ == '__main__':
     'vae': gms.VAE,
     'vqvae': gms.VQVAE,
     'gan': gms.GAN,
+    'transformer': gms.TransformerCNN,
   }[tempC.model]
   defaults = {}
   for key, value in Model.DC.items():
@@ -45,7 +45,7 @@ if __name__ == '__main__':
       parser.add_argument(f'--{key}', type=type(value), default=value)
   parser.set_defaults(**defaults)
   C = parser.parse_args()
-  model = Model(C).to(C.device)
+  model = Model(C=C).to(C.device)
   writer = SummaryWriter(C.logdir)
   logger = utils.dump_logger({}, writer, 0, C)
   train_ds, test_ds = utils.load_mnist(C.bs, binarize=C.binarize)

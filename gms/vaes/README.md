@@ -1,4 +1,4 @@
-# VAEs
+# Variational AutoEncoders
 - [Variational AutoEncoder (vanilla)](#variational-autoencoder-vanilla)
   - [Quick explanation](#quick-explanation)
   - [Long explanation](#long-explanation)

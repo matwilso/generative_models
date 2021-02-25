@@ -13,7 +13,6 @@ from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
 
-# TODO: VQ VAE may be worth doing. but maybe as a separate repo.
 from gms import utils
 from og_pixel_cnn import LayerNorm, MaskConv2d
 
