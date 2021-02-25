@@ -48,7 +48,7 @@ class VAE(utils.GM):
 class Encoder(nn.Module):
   def __init__(self, out_size, C):
     super().__init__()
-    H = self.C.hidden_size
+    H = C.hidden_size
     self.net = nn.Sequential(
         nn.Conv2d(1, H, 3, 2),
         nn.ReLU(),

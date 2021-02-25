@@ -12,6 +12,7 @@ class PixelCNN(utils.Autoreg):
   DC.n_layers = 5
   DC.kernel_size = 7
   DC.use_resblock = 0
+  DC.lr = 1e-4
   def __init__(self, C):
     super().__init__(C)
     assert C.n_layers >= 2

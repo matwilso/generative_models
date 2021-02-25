@@ -1,10 +1,10 @@
 # generative_models
 
-Implementations of fundamental deep generative models.
+**Implementations of fundamental deep generative models. (currently: Autoregressive models, VAEs, and GANs)**
 <!--, along with descriptions using simple language.-->
 
-Partially these are my notes to understand the algorithms and I make them public to incentivize myself to understand them clearly and make the code clean.
-Beyond that, my goal is to provide a central source of many of the important fundamental generative models, with code that is as simple as possible to understand.
+Partially these are my notes to understand the algorithms and I make them public to incentivize myself to be more thorough and make the code clean.
+Beyond that, my goal is to provide a central source of many of the important fundamental generative models, with explanations and code that are as simple as possible to understand.
 
 Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course,
 which I have been following. Many of these implementations will not scale far beyond MNIST, but they are just meant to represent the fundamental ideas

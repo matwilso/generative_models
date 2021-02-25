@@ -63,7 +63,7 @@ class Generator(nn.Module):
     super().__init__()
     H = C.hidden_size
     self.net = nn.Sequential(
-        nn.ConvTranspose2d(self.C.noise_size, H, 5, 1),
+        nn.ConvTranspose2d(C.noise_size, H, 5, 1),
         nn.BatchNorm2d(H),
         nn.ReLU(),
         nn.ConvTranspose2d(H, H, 4, 2),
