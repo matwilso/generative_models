@@ -9,22 +9,12 @@ of the fundamentals of deep generative modeling.
 Many of these implementations will not scale far beyond MNIST, but they are just meant to represent the fundamental ideas
 in a concise way. Or just because it's interesting to see what can be made to work well.
 
-- [Install](#install)
 - [Autoregressive models](#autoregressive-models)
-  - [RNN/LSTM](#rnnlstm)
-  - [MADE](#made)
-  - [Wavenet](#wavenet)
-  - [PixelCNN (original)](#pixelcnn-original)
-  - [GatedPixelCNN (improved mask version)](#gatedpixelcnn-improved-mask-version)
-  - [TransformerCNN](#transformercnn)
 - [Variational Autoencoders (VAEs)](#variational-autoencoders-vaes)
-  - [VAE (vanilla)](#vae-vanilla)
-  - [VQ-VAE](#vq-vae)
-- [GANs](#gans)
-  - [GAN (vanilla/scaled down DCGAN)](#gan-vanillascaled-down-dcgan)
+- [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
 - [Future](#future)
 
-## Install
+**Install**
 ```
 git clone https://github.com/matwilso/generative_models.git
 cd generative_models/
@@ -35,28 +25,28 @@ cd gms/
 
 ## [Autoregressive models](gms/autoregs)
 
-### [RNN/LSTM](gms/autoregs/rnn.py)
+#### [RNN/LSTM](gms/autoregs/rnn.py)
 ```
 python main.py --model=rnn 
 ```
-### [MADE](gms/autoregs/made.py)
+#### [MADE](gms/autoregs/made.py)
 Masked Autoencoder for Distribution Estimation. I don't like MADE.
 ```
 python main.py --model=made 
 ```
-### [Wavenet](gms/autoregs/wavenet.py)
+#### [Wavenet](gms/autoregs/wavenet.py)
 ```
 python main.py --model=wavenet 
 ```
-### [PixelCNN (original)](gms/autoregs/pixelcnn.py)
+#### [PixelCNN (original)](gms/autoregs/pixelcnn.py)
 ```
 python main.py --model=pixelcnn 
 ```
-### [GatedPixelCNN (improved mask version)](gms/autoregs/gatedcnn.py)
+#### [GatedPixelCNN (improved mask version)](gms/autoregs/gatedcnn.py)
 ```
 python main.py --model=gatedcnn 
 ```
-### [TransformerCNN](gms/autoregs/transformer.py)
+#### [TransformerCNN](gms/autoregs/transformer.py)
 Kind of like a PixelCNN but uses a transformer architecture where the individual pixels are as considered tokens (28x28=784 of them for MNIST).
 Kind of like ImageGPT.
 ```
@@ -65,11 +55,11 @@ python main.py --model=transformer
 
 ## [Variational Autoencoders (VAEs)](gms/vaes/)
 
-### [VAE (vanilla)](gms/vaes/vae.py)
+#### [VAE (vanilla)](gms/vaes/vae.py)
 ```
 python main.py --model=vae 
 ```
-### [VQ-VAE](gms/vaes/vqvae.py)
+#### [VQ-VAE](gms/vaes/vqvae.py)
 
 The VQ-VAE is usually trained in a two-phase process. Phase 1 trains discrete encoder and decoder. Phase 2 trains
 the prior that can produce the indexes of the latent codes, using a PixelCNN type approach.
@@ -81,9 +71,9 @@ And we also use our TransformerCNN, instead of our PixelCNN.
 ```
 python main.py --model=vqvae 
 ```
-## [GANs](gms/gans/)
+## [Generative Adversarial Networks (GANs)](gms/gans/)
 
-### [GAN (vanilla/scaled down DCGAN)](gms/gans/gan.py)
+#### [GAN (vanilla/scaled down DCGAN)](gms/gans/gan.py)
 ```
 python main.py --model=gan 
 ```
