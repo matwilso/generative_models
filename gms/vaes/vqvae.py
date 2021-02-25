@@ -130,6 +130,7 @@ class Decoder(nn.Module):
     return self.net(x)
 
 class VectorQuantizer(nn.Module):
+  """https://github.com/MishaLaskin/vqvae"""
   def __init__(self, K, D, beta, C):
     super().__init__()
     self.K = K
