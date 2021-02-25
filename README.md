@@ -12,11 +12,35 @@ in a concise way. Or just because it's interesting to see what can be made to wo
 | Genereative models |  |  |  |
 |-|-|-|-|
 |  |  |  |  |
-| Recurrent |  |  |  |
+| Recurrent ||||
 | RNN | this  | is | test |
 | Masked |  |  |  |
 | MADE | so | is | this |
 | Wavenet | or | am | i |
+
+<table style="width:100%">
+  <tr>
+    <th>Generative Models</th>
+  </tr>
+  <tr>
+    <th>Autoregressive models</td>
+  </tr>
+  <tr>
+    <td>RNN</td>
+    <td>this</td>
+    <td>are</td>
+    <td>plots</td>
+  </tr>
+  <tr>
+    <th>Masked models</td>
+  </tr>
+  <tr>
+    <td>MADE</td>
+    <td>this</td>
+    <td>are</td>
+    <td>plots</td>
+  </tr>
+</table>
 
 ## Autoregressive models
 
