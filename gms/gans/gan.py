@@ -47,15 +47,12 @@ class Generator(nn.Module):
     self.net = nn.Sequential(
         nn.ConvTranspose2d(self.C.noise_size, H, 5, 1),
         nn.BatchNorm2d(H),
-        # nn.GroupNorm(32, H),
         nn.ReLU(),
         nn.ConvTranspose2d(H, H, 4, 2),
         nn.BatchNorm2d(H),
-        # nn.GroupNorm(32, H),
         nn.ReLU(),
         nn.ConvTranspose2d(H, H, 4, 2),
         nn.BatchNorm2d(H),
-        # nn.GroupNorm(32, H),
         nn.ReLU(),
         nn.ConvTranspose2d(H, 1, 3, 1),
         nn.Sigmoid(),)
@@ -69,8 +66,7 @@ class Generator(nn.Module):
 class GAN(nn.Module):
   DC = utils.AttrDict()  # default C
   DC.noise_size = 128
-  DC.binarize = 0
-  DC.reg = 1e-4
+  DC.binarize = 0 # don't binarize the data for GAN, because then it's hard to backprop the gradients
 
   def __init__(self, C):
     super().__init__()

@@ -17,7 +17,6 @@ def args_type(default):
     return lambda x: pathlib.Path(x).expanduser()
   return type(default)
 
-
 def count_vars(module):
   return sum([np.prod(p.shape) for p in module.parameters()])
 

@@ -12,7 +12,6 @@ My general resource for this was the USL course.
 Where it makes sense, I borrow from some of the code provided from the course demos.
 
 
-
 Implementing and digging into code is very expensive.
 But it's really important to know what exists and to be familiar
 with the details so that you have a complete enough toolbox to solve
@@ -22,9 +21,6 @@ learning and understand the world. The old quote that is super cliche and over-u
 at this point: "What I cannot create, I do not understand."
 
 "Know how to solve every problem that has been solved."
-
-
-
 
 ## Models
 
@@ -36,12 +32,25 @@ Models:
 - VAEs
 - GAN
 
+
+
 Autoregressive the math and intuition is pretty easy and the architectures and the details are a bit harder to understand.
 VAEs the math is harder to understand. Some of the intuition is easy, if you just see it as extension of an
 autoencoder. But the theory behind it requires more knowledge of probability. In the end though, the details
 are pretty simple. The base architecture and training process is extremely straightforward.
 For GANs, the basic intuition and math are pretty easy, and so is the architecture. It's just pretty
 hard to get the damn thing working. They are fickle and require special details to work well.
+I guess further additions get more complex.
+
+VAEs are nice because they enable a smooth latent space that you can use for other tasks.
+They capture features of the environment in a compact latent representation.
+
+| Model | Training | Sampling | Likelihood-based |  |
+|-|-|-|-|-|
+| Autoregressive | Pass through network and run maximum likelihood update <br>RNN: many passes<br>Masking: single pass for N steps | Expensive, run N forward passes, where N is the dimensionality of your data | Yes |  |
+| VAEs | Encode, sample, Decode to match input. | Sample z~N(0,1), forward pass through decoder | Approximate |  |
+| GANs | sample, Generate, Discriminate. Make Discriminator tell between. And pass gradient signal back for how Generator can improve | Sample noise~N(0,1), forward pass through generator  | No, implicit |  |
+
 
 ## Future
 - Flows
