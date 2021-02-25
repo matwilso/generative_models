@@ -35,7 +35,6 @@ def append_location(x):
   XY = torch.stack(torch.meshgrid(torch.linspace(0, 1, x.shape[-2]), torch.linspace(0, 1, x.shape[-1])), 0)
   return torch.cat([x, XY[None].repeat_interleave(x.shape[0], 0).to(x.device)], 1)
 
-
 class RNN(nn.Module):
   def __init__(self, H):
     super().__init__()
@@ -92,60 +91,3 @@ class RNN(nn.Module):
         samples = samples[:, 1:].squeeze(-1)  # n x 784
       samples = samples.view(n, *self.input_shape)
       return samples.cpu()
-
-
-if __name__ == '__main__':
-  # TODO: use low beta 0.1
-  # TODO: make network bigger
-  from gms.utils import load_mnist
-  H = utils.parseC(H)
-  writer = SummaryWriter(H.logdir)
-  logger = utils.dump_logger({}, writer, 0, H)
-  train_ds, test_ds = load_mnist(H.bs)
-  _batch = next(iter(train_ds))
-  _batch[0] = _batch[0].to(H.device)
-  model = RNN(H).to(H.device)
-  optimizer = Adam(model.parameters(), lr=H.lr)
-
-  def train_epoch():
-    if H.overfit_batch:
-      for i in range(H.log_n):
-        optimizer.zero_grad()
-        loss = model.nll(_batch)
-        loss.backward()
-        optimizer.step()
-        logger['loss'] += [loss.detach().cpu()]
-    else:
-      for batch in train_ds:
-        optimizer.zero_grad()
-        loss = model.nll(batch)
-        loss.backward()
-        optimizer.step()
-        logger['loss'] += [loss.detach().cpu()]
-
-  def eval():
-    model.eval()
-    if H.overfit_batch:
-      batch = _batch
-      loss = model.nll(batch)
-      logger['test/bits_per_dim'] = loss.item() / np.log(2)
-    else:
-      total_loss = 0
-      with torch.no_grad():
-        for batch in test_ds:
-          loss = model.nll(batch)
-          total_loss += loss * batch[0].shape[0]
-        avg_loss = total_loss / len(test_ds.dataset)
-      logger['test/bits_per_dim'] = avg_loss.item() / np.log(2)
-    samples = model.sample(10)
-    utils.plot_samples(writer, i, batch[0][:10], samples)
-    writer.flush()
-    model.train()
-
-  for i in count():
-    train_epoch()
-    eval()
-    logger = utils.dump_logger(logger, writer, i, H)
-
-    if i >= H.done_n:
-      break
