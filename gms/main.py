@@ -53,22 +53,27 @@ if __name__ == '__main__':
 
   # TRAINING LOOP 
   for epoch in count():
-    # TRAIN
+    ## TRAIN
     for batch in train_ds:
       batch[0], batch[1] = batch[0].to(C.device), batch[1].to(C.device)
       # TODO: see if we can just use loss and write the gan such that it works.
-      metrics = model.train_step(batch)
+      metrics = model.train_step(batch[0])
       for key in metrics:
         logger[C.model+'/'+key] += [metrics[key].detach().cpu()]
     # TEST
     model.eval()
     with torch.no_grad():
-      for test_batch in test_ds:
-        test_batch[0], test_batch[1] = test_batch[0].to(C.device), test_batch[1].to(C.device)
-        test_loss, test_metrics = model.loss(test_batch)
-        for key in test_metrics:
-          logger[C.model+'/test/' + key] += [test_metrics[key].detach().cpu()]
-      model.evaluate(writer, test_batch, epoch)
+      # if we define an explicit loss function, use it to test how we do on the test set.
+      if hasattr(model, 'loss'):
+        for test_batch in test_ds:
+          test_batch[0], test_batch[1] = test_batch[0].to(C.device), test_batch[1].to(C.device)
+          test_loss, test_metrics = model.loss(test_batch[0])
+          for key in test_metrics:
+            logger[C.model+'/test/' + key] += [test_metrics[key].detach().cpu()]
+      else:
+        test_batch = next(iter(test_ds))
+      # run the model specific evaluate function. usually draws samples and creates other relevant visualizations.
+      model.evaluate(writer, test_batch[0], epoch)
     model.train()
     # LOGGING
     logger['num_vars'] = num_vars

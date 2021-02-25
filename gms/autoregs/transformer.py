@@ -26,7 +26,7 @@ class TransformerCNN(nn.Module):
     assert C is not None, 'must pass in C'
     self.block_size = block_size
     self.in_size = in_size
-    self.pos_emb = nn.Parameter(torch.zeros(1, self.block_size, C.n_embed))
+    self.pos_emb = nn.Parameter(torch.zeros(1, self.block_size, C.n_embed)) # learned position embedding
     self.embed = nn.Linear(self.in_size, C.n_embed, bias=False)
     self.blocks = nn.Sequential(*[Block(self.block_size, C) for _ in range(C.n_layer)])
     self.ln_f = nn.LayerNorm(C.n_embed)

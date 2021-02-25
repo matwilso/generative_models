@@ -52,7 +52,7 @@ in a concise way. Or just because it's interesting to see what can be made to wo
 - [Wavenet] Trained to generate pixels one at a time
 - [PixelCNN (original)]
 - [PixelCNN (gated/improved)]
-- [TransformerCNN] Uses a transformer architecture where the individual pixels are considered tokens (28x28=784 of them for MNIST).
+- [TransformerCNN] Like a PixelCNN, but uses a transformer architecture where the individual pixels are as considered tokens (28x28=784 of them for MNIST).
 
 ## Variational Autoencoders (VAES)
 

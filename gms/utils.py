@@ -25,7 +25,26 @@ class AttrDict(dict):
   __getattr__ = dict.__getitem__
 
 class GM(torch.nn.Module):
-  DC = AttrDict() # default configuration. can be customized across models
+  DC = AttrDict()  # default configuration. can be customized across models
+
+  def __init__(self):
+    super().__init__()
+
+  def train_step(self, batch):
+    raise NotImplementedError()
+
+  def train_step(self, batch):
+    """take one step on a batch to update the network"""
+    assert hasattr(self, 'loss'), 'you are using the default train_step. this requires you to define a loss function that returns loss, metrics'
+    assert hasattr(self, 'optimizer'), 'you are using the default train_step. this requires you to use define self.optimizer'
+    self.optimizer.zero_grad()
+    loss, metrics = self.loss(batch)
+    loss.backward()
+    self.optimizer.step()
+    return metrics
+
+  def evaluate(self, batch):
+    raise NotImplementedError()
 
 def dump_logger(logger, writer, i, C):
   print('=' * 30)
@@ -38,12 +57,28 @@ def dump_logger(logger, writer, i, C):
   with open(pathlib.Path(C.logdir) / 'hps.yaml', 'w') as f:
     yaml.dump(C, f)
   print('=' * 30)
+  writer.flush()
   return defaultdict(lambda: [])
 
-def plot_samples(name, writer, i, *args):
+def combine_imgs(arr, row=5, col=5):
+  """takes batch of video or image and pushes the batch dim into certain image shapes given by b,row,col"""
+  if len(arr.shape) == 4:  # image
+    BS, C, H, W = arr.shape
+    assert BS == row * col and H == W == 28, (BS, row, col, H, W)
+    x = arr.reshape([row, col, 28, 28]).permute(0, 2, 1, 3).flatten(0, 1).flatten(-2)
+    return x
+  elif len(arr.shape) == 5:  # video
+    BS, T, C, H, W = arr.shape
+    assert BS == row * col and H == W == 28, (BS, row, col, H, W)
+    x = arr.reshape([row, col, T, 28, 28]).permute(2, 0, 3, 1, 4).flatten(0, 1).flatten(-2)
+  else:
+    raise NotImplementedError()
+
+def plot25(writer, name, arr, i):
+
   l = []
   for a in args:
-    upr = torch.reshape(a, [10 * 28, 28]).cpu().detach().numpy()
+    upr = torch.reshape(a, [-1, 28]).cpu().detach().numpy()
     l += [upr, np.zeros_like(upr)]
   img = np.concatenate(l, axis=-1)
   plt.imsave('test.png', img)
