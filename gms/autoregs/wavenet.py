@@ -40,7 +40,7 @@ class Wavenet(utils.Autoreg):
   def loss(self, x):
     dist = self.forward(x)
     loss = -dist.log_prob(x).mean()
-    return loss, {'loss': loss}
+    return loss, {'nlogp': loss}
 
   def sample(self, n):
     steps = []

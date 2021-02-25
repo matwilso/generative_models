@@ -45,7 +45,7 @@ class PixelCNN(utils.Autoreg):
 
   def loss(self, x):
     loss = -self.forward(x).log_prob(x).mean()
-    return loss, {'loss': loss}
+    return loss, {'nlogp': loss}
 
   def sample(self, n):
     steps = []

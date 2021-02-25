@@ -52,7 +52,7 @@ class MADE(utils.Autoreg):
     x = x.view(-1, 784)  # Flatten image
     logits = self.net(x)
     loss = -tdib.Bernoulli(logits=logits).log_prob(x).mean()
-    return loss, {'loss': loss}
+    return loss, {'nlogp': loss}
 
   def sample(self, n):
     samples = torch.zeros(n, 784).to(self.C.device)

@@ -26,7 +26,7 @@ class VAE(utils.GM):
     kl_loss = tdib.kl_divergence(z_post, z_prior).mean(-1)
     # full loss and metrics
     loss = (recon_loss + self.C.beta * kl_loss).mean()
-    metrics = {'loss': loss, 'recon_loss': recon_loss.mean(), 'kl_loss': kl_loss.mean()}
+    metrics = {'vae_loss': loss, 'recon_loss': recon_loss.mean(), 'kl_loss': kl_loss.mean()}
     return loss, metrics
 
   def sample(self, n):

@@ -3,13 +3,12 @@
 Implementations of fundamental deep generative models.
 <!--, along with descriptions using simple language.-->
 
-Partially these are my notes and I make them public as self-motivation to make sure I understand them and make the code clean.
-Beyond that, the goal is to provide a central source of many of the important fundamental generative models, with
-code that is as simple as possible to understand.
+Partially these are my notes to understand the algorithms and I make them public to incentivize myself to understand them clearly.
+Beyond that, my goal is to provide a central source of many of the important fundamental generative models, with code that is as simple as possible to understand.
 
 Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course,
 which I have been following. Many of these implementations will not scale far beyond MNIST, but they are just meant to represent the fundamental ideas
-in a concise way. And somewhat just because it's interesting to see what can be made to work well.
+in a concise way. And sometimes it's just interesting to see what can be made to work well.
 
 I have a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 it on MNIST, and log metrics to tensorboard.
@@ -90,11 +89,12 @@ python main.py --model=gan
 - Flows
 - Diffusion model
 - EBM
-// TODO: more explanations of the algorithms
-// TODO: add class condition
-// TODO: try interpolation
-// TODO: visualizations.
-// TODO: bits/dim for autoreg methods. 
-// TODO: FID or something for comparing sample qualities head to head.
-// TODO: head-to-head training times and such, both generally and specifically for autoregs, which have a very similar structure.
-// TODO: tests.
+
+// TODO: more explanations of the algorithms <br>
+// TODO: add class condition <br>
+// TODO: try interpolation <br>
+// TODO: visualizations. <br>
+// TODO: bits/dim for autoreg methods.  <br>
+// TODO: FID or something for comparing sample qualities head to head. <br>
+// TODO: head-to-head training times and such, both generally and specifically for autoregs, which have a very similar structure. <br>
+// TODO: tests. <br>

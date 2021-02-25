@@ -36,7 +36,7 @@ class RNN(utils.Autoreg):
     # Decode the hidden state of the last time step
     out = self.fc(out).squeeze(-1)  # b x 784
     loss = -tdib.Bernoulli(logits=out.reshape([bs, 1, 28, 28])).log_prob(inp).mean()
-    return loss, {'loss': loss}
+    return loss, {'nlogp': loss}
 
   def sample(self, n):
     with torch.no_grad():

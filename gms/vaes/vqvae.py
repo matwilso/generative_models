@@ -47,7 +47,7 @@ class VQVAE(utils.GM):
     prior_loss = -dist.log_prob(code_idxs).mean()
     prior_loss.backward()
     self.prior_optimizer.step()
-    return {'loss': loss, 'recon_loss': recon_loss, 'embed_loss': embed_loss, 'perplexity': perplexity, 'prior_loss': prior_loss}
+    return {'vq_vae_loss': loss, 'recon_loss': recon_loss, 'embed_loss': embed_loss, 'perplexity': perplexity, 'prior_loss': prior_loss}
 
   def forward(self, x):
     z_e = self.encoder(x)

@@ -36,7 +36,7 @@ class TransformerCNN(utils.Autoreg):
     loss = -self.forward(x).log_prob(x).mean()
     loss.backward()
     self.optimizer.step()
-    return {'loss': loss}
+    return {'nlogp': loss}
 
   def forward(self, x):
     BS, T, C = x.shape

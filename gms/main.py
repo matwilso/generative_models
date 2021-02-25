@@ -65,7 +65,7 @@ if __name__ == '__main__':
       # TODO: see if we can just use loss and write the gan such that it works.
       metrics = model.train_step(batch[0])
       for key in metrics:
-        logger[C.model+'/'+key] += [metrics[key].detach().cpu()]
+        logger[key] += [metrics[key].detach().cpu()]
     logger['dt/train'] = time.time()-train_time
     # TEST
     model.eval()
@@ -76,7 +76,7 @@ if __name__ == '__main__':
           test_batch[0], test_batch[1] = test_batch[0].to(C.device), test_batch[1].to(C.device)
           test_loss, test_metrics = model.loss(test_batch[0])
           for key in test_metrics:
-            logger[C.model+'/test/' + key] += [test_metrics[key].detach().cpu()]
+            logger['test/' + key] += [test_metrics[key].detach().cpu()]
       else:
         test_batch = next(iter(test_ds))
         test_batch[0], test_batch[1] = test_batch[0].to(C.device), test_batch[1].to(C.device)
