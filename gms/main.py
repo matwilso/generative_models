@@ -18,7 +18,6 @@ C.hidden_size = 256
 C.device = 'cuda'
 C.num_epochs = 50
 C.save_n = 100
-C.beta = 1.0
 C.logdir = pathlib.Path('./logs/')
 C.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
 C.lr = 3e-4
@@ -45,6 +44,7 @@ if __name__ == '__main__':
       parser.add_argument(f'--{key}', type=type(value), default=value)
   parser.set_defaults(**defaults)
   C = parser.parse_args()
+  C.logdir = C.logdir / C.model
   model = Model(C=C).to(C.device)
   writer = SummaryWriter(C.logdir)
   logger = utils.dump_logger({}, writer, 0, C)

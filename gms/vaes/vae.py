@@ -8,6 +8,7 @@ from gms import utils
 class VAE(utils.GM):
   DC = utils.AttrDict()  # default C
   DC.z_size = 128
+  DC.beta = 1.0
 
   def __init__(self, C):
     super().__init__()
