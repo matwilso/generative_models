@@ -11,8 +11,8 @@ from gms import utils
 class TransformerCNN(utils.Autoreg):
   DC = utils.AttrDict()
   DC.n_layer = 2
-  DC.n_head = 4
-  DC.n_embed = 128
+  DC.n_head = 8
+  DC.n_embed = 256
   DC.lr = 1e-3
   """  the full GPT language model, with a context size of block_size """
   def __init__(self, in_size=1, block_size=28*28, head='bin', C=None):
@@ -50,20 +50,20 @@ class TransformerCNN(utils.Autoreg):
     logits = self.ln_f(x)
     return self.dist_head(logits)
 
-  def sample(self, n, block_size=28*28, in_size=1):
+  def sample(self, n):
     steps = []
-    batch = torch.zeros(n, block_size, in_size).to(self.C.device)
-    for i in range(block_size):
+    batch = torch.zeros(n, self.block_size, self.in_size).to(self.C.device)
+    for i in range(self.block_size):
       dist = self.forward(batch)
       batch[:,i] = dist.sample()[:,i]
       steps += [batch.cpu()]
-    return batch.cpu(), steps
+    return batch, steps
 
   def evaluate(self, writer, x, epoch):
     samples, gen = self.sample(25)
     B, HW, C = samples.shape
     gen = torch.stack(gen).reshape([HW, B, 1, 28, 28]).permute(1, 0, 2, 3, 4)
-    samples = samples.reshape([B, C, 28, 28])
+    samples = samples.reshape([B, C, 28, 28]).cpu()
     writer.add_video('sampling_process', utils.combine_imgs(gen, 5, 5)[None,:,None], epoch, fps=60)
     writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
 

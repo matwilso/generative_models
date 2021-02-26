@@ -12,12 +12,12 @@ class Wavenet(utils.Autoreg):
   """
   DC = utils.AttrDict()
   DC.use_resblock = 1
-  DC.lr = 1e-4
+  DC.hidden_size = 256
   def __init__(self, C):
     super().__init__(C)
     in_channels = 3 # pixel + xy location
     out_channels = 1 # pixel
-    res_channels = 64
+    res_channels = C.hidden_size
     layer_size = 9  # Largest dilation is 512 (2**9)
     self.causal = DilatedCausalConv1d('A', in_channels, res_channels, dilation=1)
     if C.use_resblock:

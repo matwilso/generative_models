@@ -8,7 +8,7 @@ from gms import utils
 
 class PixelCNN(utils.Autoreg):
   DC = utils.AttrDict()
-  DC.n_filters = 64
+  DC.n_filters = 128
   DC.n_layers = 5
   DC.kernel_size = 7
   DC.use_resblock = 0

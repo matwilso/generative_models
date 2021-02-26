@@ -18,6 +18,8 @@ Some of them are super naive approaches, and it's just interesting to see how we
 
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard. See usage below.
+None of the performances here should be considered as hard evidence for or against an algorithm,
+as they are not tuned. But if it works, that is kind of interesting.
 
 **Contents**
 - [Autoregressive models](#autoregressive-models)
@@ -76,7 +78,7 @@ python main.py --model=vae
 The VQ-VAE is usually trained in a two-phase process. Phase 1 trains discrete encoder and decoder. Phase 2 trains
 the prior that can produce the indexes of the latent codes, using a PixelCNN type approach.
 Instead we train everything in a single Phase.
-This leads to worse samples because the codes are constantly shifting and the PixelCNN is hard to learn, but it simplifies
+It's possible that this will lead to worse samples because the codes are constantly shifting so the PixelCNN has a harder time, but it simplifies
 the code and lets you train it all in a single run.
 And we also use our TransformerCNN, instead of our PixelCNN.
 

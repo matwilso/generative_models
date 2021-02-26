@@ -7,6 +7,8 @@ import torch.nn.functional as F
 from gms import utils
 
 class MADE(utils.Autoreg):
+  DC = utils.AttrDict()
+  DC.hidden_size = 512
   def __init__(self, C):
     super().__init__(C)
     self.nin = 784

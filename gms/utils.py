@@ -29,7 +29,7 @@ class AttrDict(dict):
   __getattr__ = dict.__getitem__
 
 class GM(torch.nn.Module):
-  DC = AttrDict()  # default configuration. can be customized across models
+  DC = AttrDict()  # default configuration. can be customized across models, both by changing the default value and by adding new options
 
   def __init__(self, C):
     super().__init__()
