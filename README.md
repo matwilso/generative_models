@@ -1,10 +1,14 @@
 # generative_models
 
+>*"It is important to view knowledge as sort of a semantic tree---make sure you understand the fundamental principles, ie the trunk and big branches, before you get into the leaves/details or there is nothing for them to hang on to"* - Elon
+
 **Implementations of fundamental deep generative models. (currently: Autoregressive models, VAEs, and GANs)**
 <!--, along with descriptions using simple language.-->
 
+<!--probably ought to add some description of why i think generative models are important to understand-->
+
 Partially these are my notes to understand the algorithms, made public to incentivize myself to be more thorough and make the code clean.
-Beyond that, my goal is to provide a central repository for the important fundamental generative modeling algorithms,
+Beyond that, my goal is to provide a standardized repository for the important fundamental generative modeling algorithms,
 with explanations and code that are as simple as possible to understand.
 
 Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course.
