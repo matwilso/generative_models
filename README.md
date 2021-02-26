@@ -18,8 +18,7 @@ Some of them are super naive approaches, and it's just interesting to see how we
 
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard. See usage below.
-None of the performances here should be considered as hard evidence for or against an algorithm,
-as they are not tuned. But if it works, that is kind of interesting.
+None of the performances here should be considered as hard evidence for or against an algorithm, as they have not been tuned and extra tricks have not been applied.
 
 **Contents**
 - [Autoregressive models](#autoregressive-models)
