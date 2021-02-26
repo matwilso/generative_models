@@ -11,8 +11,8 @@ from gms import utils
 class TransformerCNN(utils.Autoreg):
   DC = utils.AttrDict()
   DC.n_layer = 2
-  DC.n_head = 8
-  DC.n_embed = 256
+  DC.n_head = 4
+  DC.n_embed = 128
   DC.lr = 1e-3
   """  the full GPT language model, with a context size of block_size """
   def __init__(self, in_size=1, block_size=28*28, head='bin', C=None):

@@ -9,7 +9,7 @@ from gms import utils
 class RNN(utils.Autoreg):
   DC = utils.AttrDict()
   DC.append_loc = 1
-  DC.hidden_size = 1024
+  DC.hidden_size = 1024 # this is big and it makes it train slowly, but it makes it have similar # parameters as other models.
   def __init__(self, C):
     super().__init__(C)
     self.C = C
