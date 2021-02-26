@@ -1,8 +1,8 @@
 # generative_models
 
->*"It is important to view knowledge as sort of a semantic tree---make sure you understand the fundamental principles, ie the trunk and big branches, before you get into the leaves/details or there is nothing for them to hang on to"* - Elon
-
 **Implementations of fundamental deep generative models. (currently: Autoregressive models, VAEs, and GANs)**
+>*"It is important to view knowledge as sort of a semantic tree -- make sure you understand the fundamental principles, ie the trunk and big branches, before you get into the leaves/details or there is nothing for them to hang on to"* - Elon
+
 <!--, along with descriptions using simple language.-->
 
 <!--probably ought to add some description of why i think generative models are important to understand-->
