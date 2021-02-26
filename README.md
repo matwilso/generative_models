@@ -7,7 +7,7 @@ Partially these are my notes to understand the algorithms, made public to incent
 Beyond that, my goal is to provide a central repository for the important fundamental generative modeling algorithms,
 with explanations and code that are as simple as possible to understand.
 
-Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course
+Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course.
 Some of these implementations won't scale far beyond MNIST, because they are designed to represent the fundamental ideas very concisely.
 (Most models are expressed within about 100 lines of code, including network architecture definitions.)
 Some of them are super naive approaches, and it's just interesting to see how well they do on MNIST.
@@ -32,14 +32,17 @@ pip install -r requirements.txt
 ## [Autoregressive models](gms/autoregs)
 
 #### [RNN/LSTM](gms/autoregs/rnn.py)
+Generate an MNIST image one pixel at a time with an LSTM
 ```
 python main.py --model=rnn 
 ```
 #### [MADE](gms/autoregs/made.py)
+Run MADE on a flattened MNIST image
 ```
 python main.py --model=made 
 ```
 #### [Wavenet](gms/autoregs/wavenet.py)
+Run a Wavenet on a flattened MNIST image
 ```
 python main.py --model=wavenet 
 ```
