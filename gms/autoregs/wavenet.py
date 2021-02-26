@@ -12,7 +12,7 @@ class Wavenet(utils.Autoreg):
   """
   DC = utils.AttrDict()
   DC.use_resblock = 1
-  DC.hidden_size = 256
+  DC.hidden_size = 320
   def __init__(self, C):
     super().__init__(C)
     in_channels = 3 # pixel + xy location

@@ -9,6 +9,8 @@ from gms.autoregs.pixelcnn import PixelCNN, LayerNorm, MaskConv2d
 
 # GatedPixelCNN using horizontal and vertical stacks to fix blind-spot
 class GatedPixelCNN(PixelCNN):
+  DC = utils.AttrDict()
+  DC.n_filters = 96
   def __init__(self, C):
     super().__init__(C)
     input_shape = (1,28,28)

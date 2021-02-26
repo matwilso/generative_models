@@ -9,7 +9,7 @@ from gms import utils
 class RNN(utils.Autoreg):
   DC = utils.AttrDict()
   DC.append_loc = 1
-  DC.hidden_size = 512
+  DC.hidden_size = 1024
   def __init__(self, C):
     super().__init__(C)
     self.C = C

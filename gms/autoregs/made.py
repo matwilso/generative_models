@@ -8,7 +8,7 @@ from gms import utils
 
 class MADE(utils.Autoreg):
   DC = utils.AttrDict()
-  DC.hidden_size = 512
+  DC.hidden_size = 1024
   def __init__(self, C):
     super().__init__(C)
     self.nin = 784

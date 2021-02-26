@@ -55,6 +55,7 @@ if __name__ == '__main__':
   logger = utils.dump_logger({}, writer, 0, C)
   train_ds, test_ds = utils.load_mnist(C.bs, binarize=C.binarize)
   num_vars = utils.count_vars(model)
+  print('num_vars', num_vars)
 
   # TRAINING LOOP 
   for epoch in count():
