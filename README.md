@@ -3,15 +3,17 @@
 **Implementations of fundamental deep generative models. (currently: Autoregressive models, VAEs, and GANs)**
 <!--, along with descriptions using simple language.-->
 
-Partially these are my notes to understand the algorithms and I make them public to incentivize myself to be more thorough and make the code clean.
-Beyond that, my goal is to provide a central source of many of the important fundamental generative models, with explanations and code that are as simple as possible to understand.
+Partially these are my notes to understand the algorithms, made public to incentivize myself to be more thorough and make the code clean.
+Beyond that, my goal is to provide a central repository for the important fundamental generative modeling algorithms,
+with explanations and code that are as simple as possible to understand.
 
-Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course,
-which I have been following. Many of these implementations will not scale far beyond MNIST, but they are just meant to represent the fundamental ideas
-in a concise way. And sometimes it's just interesting to see what can be made to work well on MNIST.
+Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course
+Some of these implementations won't scale far beyond MNIST, because they are designed to represent the fundamental ideas very concisely.
+(Most models are expressed within about 100 lines of code, including network architecture definitions.)
+Some of them are super naive approaches, and it's just interesting to see how well they do on MNIST.
 
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
-them on MNIST, and log metrics to tensorboard.
+them on MNIST, and log metrics to tensorboard. See usage below.
 
 **Contents**
 - [Autoregressive models](#autoregressive-models)
@@ -93,7 +95,7 @@ python main.py --model=gan
 // TODO: more explanations of the algorithms <br>
 // TODO: add class condition <br>
 // TODO: try interpolation <br>
-// TODO: visualizations. <br>
+// TODO: visualizations of samples and training progression. <br>
 // TODO: bits/dim for autoreg methods.  <br>
 // TODO: FID or something for comparing sample qualities head to head. <br>
 // TODO: head-to-head training times and such, both generally and specifically for autoregs, which have a very similar structure. <br>
