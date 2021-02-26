@@ -75,7 +75,7 @@ And we also use our TransformerCNN, instead of our PixelCNN.
 
 Also VQ-VAE usually produces codes in a 32x32 space, which is larger than an MNIST image lol.
 We downsample to 7x7 codes, where K=64, so it is 64-way categorical. This still amounts 
-to 64^49 possible values that the codes can take on. So you could say it's still pretty expressive.
+to 64^49 possible values that the latent can take on. So you could say it's still pretty expressive.
 
 ```
 python main.py --model=vqvae 
