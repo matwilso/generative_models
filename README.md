@@ -19,7 +19,7 @@ Some of them are super naive approaches, and it's just interesting to see how we
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard. See usage below.
 None of the performances here should be considered as hard evidence for or against an algorithm,
-as they are not tuned. But if it works, that is kind of interesting.
+as they are not tuned.
 
 **Contents**
 - [Autoregressive models](#autoregressive-models)
@@ -34,6 +34,26 @@ cd generative_models/
 pip install -e .
 pip install -r requirements.txt
 ```
+
+## Introduction
+
+Generative models are a very important are of machine learning, that is going to be central
+to the future of the field, fundamentally because they allow us to extract more useful bits from the environment.
+And the cliched quote that "What I cannot create, I do not understand".
+
+Over the years, we have developed several ways of using neural networks to generate data. 
+You can break these into various classes, and each class faces various trade-offs and are useful in various settings.
+
+It is unclear which is ultimately the most useful.
+From 2015-2018, GANs were in the lead. But now I feel like
+likelihood based approaches, including autoregressive models (mostly because of Transformers) and 
+VAEs/VQVAEs have pulled ahead.
+But who knows what might be useful from older approaches, Flows, and other things that
+are just emerging or yet to be discovered.
+
+We decouple the implementations from complex architectures, when possible.
+The complex arches are important to understand. But also they add complexity to the core ideas.
+And should be treated in some isolation.
 
 ## [Autoregressive models](gms/autoregs)
 
@@ -91,15 +111,26 @@ python main.py --model=vqvae
 ```
 ## [Generative Adversarial Networks (GANs)](gms/gans/)
 
+GANs are a type of implicit model.
+
+Implicit models work by basically training a discriminator of some sort.
+For GAN, that is what it is. It could also be trained with contrastive learning.
+Like in EBMs, where it happens that you use the same network for both.
+
+
+
+
 #### [GAN (vanilla/scaled down DCGAN)](gms/gans/gan.py)
 ```
 python main.py --model=gan 
 ```
 
 ## Future
-- Flows
 - Diffusion model
 - EBM
+- Flows (not for awhile. i got sick of flows after messing with them a bit ago. i find they're messy and it's easy to get lost in the sauce)
+- Non-generative self-supervised learning. contrastive.
+- Score matching?
 
 // TODO: more explanations of the algorithms <br>
 // TODO: add class condition <br>
