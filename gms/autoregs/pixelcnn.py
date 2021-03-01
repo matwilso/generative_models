@@ -1,6 +1,6 @@
 import numpy as np
 from torch.optim import Adam
-import torch
+import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
@@ -50,7 +50,7 @@ class PixelCNN(utils.Autoreg):
 
   def sample(self, n):
     steps = []
-    batch = torch.zeros(n, 1, 28, 28).to(self.C.device)
+    batch = th.zeros(n, 1, 28, 28).to(self.C.device)
     for r in range(28):
       for c  in range(28):
         dist = self.forward(batch)
@@ -62,7 +62,7 @@ class MaskConv2d(nn.Conv2d):
   def __init__(self, mask_type, *args, **kwargs):
     assert mask_type == 'A' or mask_type == 'B'
     super().__init__(*args, **kwargs)
-    self.register_buffer('mask', torch.zeros_like(self.weight))
+    self.register_buffer('mask', th.zeros_like(self.weight))
     self.create_mask(mask_type)
 
   def forward(self, input, cond=None):

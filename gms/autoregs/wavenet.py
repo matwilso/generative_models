@@ -1,6 +1,6 @@
 import numpy as np
 from torch.optim import Adam
-import torch
+import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
@@ -44,7 +44,7 @@ class Wavenet(utils.Autoreg):
 
   def sample(self, n):
     steps = []
-    batch = torch.zeros(n, 1, 28, 28).to(self.C.device)
+    batch = th.zeros(n, 1, 28, 28).to(self.C.device)
     for r in range(28):
       for c  in range(28):
         dist = self.forward(batch)
@@ -86,6 +86,6 @@ class ResidualBlock(nn.Module):
     output = self.dilated(x)
     # PixelCNN gate
     o1, o2 = output.chunk(2, dim=1)
-    output = torch.tanh(o1) * torch.sigmoid(o2)
+    output = th.tanh(o1) * th.sigmoid(o2)
     output = x + self.conv_res(output)  # Residual network
     return output

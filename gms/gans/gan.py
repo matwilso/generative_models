@@ -1,4 +1,4 @@
-import torch
+import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
@@ -21,34 +21,34 @@ class GAN(utils.GM):
     self.disc_optim = Adam(self.disc.parameters(), lr=C.lr, betas=(0.5, 0.999))
     self.gen_optim = Adam(self.gen.parameters(), lr=C.lr, betas=(0.5, 0.999))
     self.bce = nn.BCELoss()
-    self.fixed_noise = torch.randn(25, C.noise_size).to(C.device)
+    self.fixed_noise = th.randn(25, C.noise_size).to(C.device)
 
   def train_step(self, x):
     bs = x.shape[0]
-    noise = torch.randn(bs, self.C.noise_size).to(self.C.device)
+    noise = th.randn(bs, self.C.noise_size).to(self.C.device)
     # DISCRIMINATOR TRAINING - distinguish between real images and generator images
     self.disc_optim.zero_grad()
     # label real as 1 and learn to predict that
     true_output = self.disc(x)
-    loss_real = self.bce(true_output, torch.ones_like(true_output))
+    loss_real = self.bce(true_output, th.ones_like(true_output))
     loss_real.backward()
     # label fake as 0 and learn to predict that
     fake = self.gen(noise)
     fake_output = self.disc(fake.detach())
-    loss_fake = self.bce(fake_output, torch.zeros_like(fake_output))
+    loss_fake = self.bce(fake_output, th.zeros_like(fake_output))
     loss_fake.backward()
     self.disc_optim.step()
     # GENERATOR TRAINING - try to produce outputs discriminator thinks is real
     self.gen_optim.zero_grad()
     output = self.disc(fake)
-    gen_loss = self.bce(output, torch.ones_like(output)) 
+    gen_loss = self.bce(output, th.ones_like(output)) 
     gen_loss.backward()
     self.gen_optim.step()
     metrics = {'disc/loss': loss_fake+loss_real, 'disc/loss_fake': loss_fake, 'disc/loss_real': loss_real, 'gen/loss': gen_loss}
     return metrics
 
   def sample(self, n):
-    fake = self.gen(torch.randn(n, self.C.noise_size).to(self.C.device))
+    fake = self.gen(th.randn(n, self.C.noise_size).to(self.C.device))
     return fake
 
   def evaluate(self, writer, x, epoch):

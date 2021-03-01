@@ -1,6 +1,6 @@
 import numpy as np
 from torch.optim import Adam
-import torch
+import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
@@ -57,17 +57,17 @@ class MADE(utils.Autoreg):
     return loss, {'nlogp': loss}
 
   def sample(self, n):
-    samples = torch.zeros(n, 784).to(self.C.device)
+    samples = th.zeros(n, 784).to(self.C.device)
     # set the pixels 1 by 1 in raster order.
     # choose pixel 0, then based on that choose pixel 1, then based on both of those choose pixel 2. etc and so on.
     # This works ok, because it is used to this version of information propagation.
     # Normally, you can't see the future. And here you can't either. So the same condition is enforced.
     steps = []
-    with torch.no_grad():
+    with th.no_grad():
       for i in range(784):
         logits = self.net(samples)[:, i]
-        probs = torch.sigmoid(logits)
-        samples[:, i] = torch.bernoulli(probs)
+        probs = th.sigmoid(logits)
+        samples[:, i] = th.bernoulli(probs)
         steps += [samples.view(n, 1, 28,28).cpu()]
         #plt.imsave(f'gifs/{i}.png', x.numpy())
       samples = samples.view(n, 1, 28, 28)
@@ -77,10 +77,10 @@ class MaskedLinear(nn.Linear):
   """ same as Linear except has a configurable mask on the weights """
   def __init__(self, in_features, out_features, bias=True):
     super().__init__(in_features, out_features, bias)
-    self.register_buffer('mask', torch.ones(out_features, in_features))
+    self.register_buffer('mask', th.ones(out_features, in_features))
 
   def set_mask(self, mask):
-    self.mask.data.copy_(torch.from_numpy(mask.astype(np.uint8).T))
+    self.mask.data.copy_(th.from_numpy(mask.astype(np.uint8).T))
 
   def forward(self, input):
     return F.linear(input, self.mask * self.weight, self.bias)

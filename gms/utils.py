@@ -4,8 +4,8 @@ from torchvision import transforms
 import argparse
 import matplotlib.pyplot as plt
 from collections import defaultdict
-import torchvision
-import torch
+import torch as thvision
+import torch as th
 from torch import nn
 from torch.optim import Adam
 import numpy as np
@@ -28,7 +28,7 @@ class AttrDict(dict):
   __setattr__ = dict.__setitem__
   __getattr__ = dict.__getitem__
 
-class GM(torch.nn.Module):
+class GM(nn.Module):
   DC = AttrDict()  # default configuration. can be customized across models, both by changing the default value and by adding new options
 
   def __init__(self, C):
@@ -59,7 +59,7 @@ class Autoreg(GM):
     samples = samples.reshape([B, C, H, W])
     writer.add_image('samples', combine_imgs(samples, 5, 5)[None], epoch)
     if len(gen) != 0:
-      gen = torch.stack(gen).reshape([H*W, B, 1, H, W]).permute(1, 0, 2, 3, 4)
+      gen = th.stack(gen).reshape([H*W, B, 1, H, W]).permute(1, 0, 2, 3, 4)
       writer.add_video('sampling_process', combine_imgs(gen, 5, 5)[None,:,None], epoch, fps=60)
 
 class CategoricalHead(nn.Module):
@@ -96,8 +96,8 @@ def dump_logger(logger, writer, i, C):
 
 def append_location(x):
   """add xy coords to every pixel"""
-  XY = torch.stack(torch.meshgrid(torch.linspace(0, 1, 28), torch.linspace(0, 1, 28)), 0).to(x.device)
-  return torch.cat([x, XY[None].repeat_interleave(x.shape[0], 0)], 1)
+  XY = th.stack(th.meshgrid(th.linspace(0, 1, 28), th.linspace(0, 1, 28)), 0).to(x.device)
+  return th.cat([x, XY[None].repeat_interleave(x.shape[0], 0)], 1)
 
 def combine_imgs(arr, row=5, col=5):
   """takes batch of video or image and pushes the batch dim into certain image shapes given by b,row,col"""

@@ -1,4 +1,4 @@
-import torch
+import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
@@ -30,7 +30,7 @@ class VAE(utils.GM):
     return loss, metrics
 
   def sample(self, n):
-    z = torch.randn(n, self.C.z_size).to(self.C.device)
+    z = th.randn(n, self.C.z_size).to(self.C.device)
     return self._decode(z)
 
   def evaluate(self, writer, x, epoch):
@@ -39,7 +39,7 @@ class VAE(utils.GM):
     writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
     z_post = self.encoder(x[:8])
     recon = self._decode(z_post.mean)
-    recon = torch.cat([x[:8].cpu(), recon], 0)
+    recon = th.cat([x[:8].cpu(), recon], 0)
     writer.add_image('reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
 
   def _decode(self, x):

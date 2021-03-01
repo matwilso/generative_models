@@ -6,7 +6,7 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from itertools import count
-import torch
+import torch as th
 import gms
 from gms import utils
 
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     logger['dt/train'] = time.time()-train_time
     # TEST
     model.eval()
-    with torch.no_grad():
+    with th.no_grad():
       # if we define an explicit loss function, use it to test how we do on the test set.
       if hasattr(model, 'loss'):
         for test_batch in test_ds:
@@ -92,6 +92,6 @@ if __name__ == '__main__':
     if epoch % C.save_n == 0:
       path = C.logdir / 'model.pt'
       print("SAVED MODEL", path)
-      torch.save(model.state_dict(), path)
+      th.save(model.state_dict(), path)
     if epoch >= C.num_epochs:
       break

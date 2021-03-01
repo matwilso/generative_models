@@ -1,6 +1,6 @@
 import numpy as np
 from torch.optim import Adam
-import torch
+import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
@@ -26,10 +26,10 @@ class RNN(utils.Autoreg):
     # make LSTM operate over 1 pixel at a time.
     x = x.permute(0, 2, 3, 1).contiguous().view(bs, self.canvas_size, self.input_channels)
     # align it so we are predicting the next pixel. start with dummy first and feed everything put last real pixel.
-    x = torch.cat((torch.zeros(bs, 1, self.input_channels).to(self.C.device), x[:, :-1]), dim=1)
+    x = th.cat((th.zeros(bs, 1, self.input_channels).to(self.C.device), x[:, :-1]), dim=1)
 
-    h0 = torch.zeros(1, x.size(0), self.C.hidden_size).to(self.C.device)
-    c0 = torch.zeros(1, x.size(0), self.C.hidden_size).to(self.C.device)
+    h0 = th.zeros(1, x.size(0), self.C.hidden_size).to(self.C.device)
+    c0 = th.zeros(1, x.size(0), self.C.hidden_size).to(self.C.device)
 
     # Forward propagate LSTM
     out, _ = self.lstm(x, (h0, c0))  # out: tensor of shape (bs, seq_length, hidden_size)
@@ -40,23 +40,23 @@ class RNN(utils.Autoreg):
     return loss, {'nlogp': loss}
 
   def sample(self, n):
-    with torch.no_grad():
-      samples = torch.zeros(n, 1, self.input_channels).to(self.C.device)
-      C = torch.zeros(1, n, self.C.hidden_size).to(self.C.device)
-      c = torch.zeros(1, n, self.C.hidden_size).to(self.C.device)
+    with th.no_grad():
+      samples = th.zeros(n, 1, self.input_channels).to(self.C.device)
+      C = th.zeros(1, n, self.C.hidden_size).to(self.C.device)
+      c = th.zeros(1, n, self.C.hidden_size).to(self.C.device)
 
       for i in range(self.canvas_size):
         x_inp = samples[:, [i]]
         out, (C, c) = self.lstm(x_inp, (C, c))
         out = self.fc(out[:, 0, :])
-        prob = torch.sigmoid(out)
-        sample_pixel = torch.bernoulli(prob).unsqueeze(-1)  # n x 1 x 1
+        prob = th.sigmoid(out)
+        sample_pixel = th.bernoulli(prob).unsqueeze(-1)  # n x 1 x 1
         if self.C.append_loc:
           loc = np.array([i // 28, i % 28]) / 27
-          loc = torch.FloatTensor(loc).to(self.C.device)
+          loc = th.FloatTensor(loc).to(self.C.device)
           loc = loc.view(1, 1, 2).repeat(n, 1, 1)
-          sample_pixel = torch.cat((sample_pixel, loc), dim=-1)
-        samples = torch.cat((samples, sample_pixel), dim=1)
+          sample_pixel = th.cat((sample_pixel, loc), dim=-1)
+        samples = th.cat((samples, sample_pixel), dim=1)
       samples = samples[:,1:,0] if self.C.append_loc else samples[:,1:].squeeze(-1)
       samples = samples.view(n, *self.input_shape)
       return samples.cpu(), []

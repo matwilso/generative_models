@@ -1,6 +1,6 @@
 import numpy as np
 from torch.optim import Adam
-import torch
+import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
@@ -28,7 +28,7 @@ class GatedPixelCNN(PixelCNN):
     batch_size = x.shape[0]
     x = x
     x = self.in_conv(x)
-    x = self.net(torch.cat((x, x), dim=1)).chunk(2, dim=1)[1]
+    x = self.net(th.cat((x, x), dim=1)).chunk(2, dim=1)[1]
     x = self.out_conv(x)
     return tdib.Bernoulli(logits=x.view(batch_size, *self.input_shape))
 
@@ -41,7 +41,7 @@ class StackLayerNorm(nn.Module):
   def forward(self, x):
     vx, hx = x.chunk(2, dim=1)
     vx, hx = self.v_layer_norm(vx), self.h_layer_norm(hx)
-    return torch.cat((vx, hx), dim=1)
+    return th.cat((vx, hx), dim=1)
 
 class GatedConv2d(nn.Module):
   def __init__(self, mask_type, in_channels, out_channels, k=7, padding=3):
@@ -84,12 +84,12 @@ class GatedConv2d(nn.Module):
 
     # Gates
     vx_1, vx_2 = vx.chunk(2, dim=1)
-    vx = torch.tanh(vx_1) * torch.sigmoid(vx_2)
+    vx = th.tanh(vx_1) * th.sigmoid(vx_2)
 
     hx_1, hx_2 = hx_new.chunk(2, dim=1)
-    hx_new = torch.tanh(hx_1) * torch.sigmoid(hx_2)
+    hx_new = th.tanh(hx_1) * th.sigmoid(hx_2)
     hx_new = self.htoh(hx_new)
     hx = hx + hx_new
 
-    return torch.cat((vx, hx), dim=1)
+    return th.cat((vx, hx), dim=1)
 

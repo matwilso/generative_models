@@ -1,7 +1,7 @@
 import itertools
 
 from matplotlib.pyplot import install_repl_displayhook
-import torch
+import torch as th
 from torch import distributions as tdib
 from torch.optim import Adam
 import torch.nn as nn
@@ -65,7 +65,7 @@ class VQVAE(utils.GM):
   def evaluate(self, writer, x, epoch):
     _, decoded, _, _ = self.forward(x[:8])
     recon = 1.0 * (decoded.exp() > 0.5).cpu()
-    recon = torch.cat([x[:8].cpu(), recon], 0)
+    recon = th.cat([x[:8].cpu(), recon], 0)
     writer.add_image('reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
     samples = self.sample(25)
     writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
@@ -114,7 +114,7 @@ class VectorQuantizer(nn.Module):
     self.embedding.weight.data.uniform_(-1.0 / self.K, 1.0 / self.K)
 
   def idx_to_encoding(self, one_hots):
-    z_q = torch.matmul(one_hots, self.embedding.weight)
+    z_q = th.matmul(one_hots, self.embedding.weight)
     return z_q
 
   def forward(self, z):
@@ -122,20 +122,20 @@ class VectorQuantizer(nn.Module):
     z = z.permute(0, 2, 3, 1).contiguous()
     z_flattened = z.view(-1, self.D)
     # distances from z to embeddings e_j (z - e)^2 = z^2 + e^2 - 2 e * z
-    d = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + torch.sum(self.embedding.weight**2, dim=1) - 2 * torch.matmul(z_flattened, self.embedding.weight.t())
+    d = th.sum(z_flattened ** 2, dim=1, keepdim=True) + th.sum(self.embedding.weight**2, dim=1) - 2 * th.matmul(z_flattened, self.embedding.weight.t())
     # find closest encodings
-    min_encoding_indices = torch.argmin(d, dim=1).unsqueeze(1)
-    min_encodings = torch.zeros(min_encoding_indices.shape[0], self.K).to(z.device)
+    min_encoding_indices = th.argmin(d, dim=1).unsqueeze(1)
+    min_encodings = th.zeros(min_encoding_indices.shape[0], self.K).to(z.device)
     min_encodings.scatter_(1, min_encoding_indices, 1)
     # get quantized latent vectors
-    z_q = torch.matmul(min_encodings, self.embedding.weight).view(z.shape)
+    z_q = th.matmul(min_encodings, self.embedding.weight).view(z.shape)
     # compute loss for embedding
-    loss = torch.mean((z_q.detach() - z)**2) + self.beta * torch.mean((z_q - z.detach()) ** 2)
+    loss = th.mean((z_q.detach() - z)**2) + self.beta * th.mean((z_q - z.detach()) ** 2)
     # preserve gradients
     z_q = z + (z_q - z).detach()
     # perplexity
-    e_mean = torch.mean(min_encodings, dim=0)
-    perplexity = torch.exp(-torch.sum(e_mean * torch.log(e_mean + 1e-10)))
+    e_mean = th.mean(min_encodings, dim=0)
+    perplexity = th.exp(-th.sum(e_mean * th.log(e_mean + 1e-10)))
     # reshape back to match original input shape
     z_q = z_q.permute(0, 3, 1, 2).contiguous()
     return loss, z_q, perplexity, min_encoding_indices.view(z.shape[:-1])

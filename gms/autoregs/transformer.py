@@ -1,6 +1,6 @@
 import numpy as np
 from torch.optim import Adam
-import torch
+import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
@@ -20,7 +20,7 @@ class TransformerCNN(utils.Autoreg):
     assert C is not None, 'must pass in C'
     self.block_size = block_size
     self.in_size = in_size
-    self.pos_emb = nn.Parameter(torch.zeros(1, self.block_size, C.n_embed)) # learned position embedding
+    self.pos_emb = nn.Parameter(th.zeros(1, self.block_size, C.n_embed)) # learned position embedding
     self.embed = nn.Linear(self.in_size, C.n_embed, bias=False)
     self.blocks = nn.Sequential(*[Block(self.block_size, C) for _ in range(C.n_layer)])
     self.ln_f = nn.LayerNorm(C.n_embed)
@@ -41,7 +41,7 @@ class TransformerCNN(utils.Autoreg):
   def forward(self, x):
     BS, T, C = x.shape
     # SHIFT RIGHT (add a padding on the left) so you can't see yourself 
-    x = torch.cat([torch.zeros(BS, 1, C).to(self.C.device), x[:, :-1]], dim=1)
+    x = th.cat([th.zeros(BS, 1, C).to(self.C.device), x[:, :-1]], dim=1)
     # forward the GPT model
     x = self.embed(x)
     x += self.pos_emb # each position maps to a (learnable) vector
@@ -52,7 +52,7 @@ class TransformerCNN(utils.Autoreg):
 
   def sample(self, n):
     steps = []
-    batch = torch.zeros(n, self.block_size, self.in_size).to(self.C.device)
+    batch = th.zeros(n, self.block_size, self.in_size).to(self.C.device)
     for i in range(self.block_size):
       dist = self.forward(batch)
       batch[:,i] = dist.sample()[:,i]
@@ -62,7 +62,7 @@ class TransformerCNN(utils.Autoreg):
   def evaluate(self, writer, x, epoch):
     samples, gen = self.sample(25)
     B, HW, C = samples.shape
-    gen = torch.stack(gen).reshape([HW, B, 1, 28, 28]).permute(1, 0, 2, 3, 4)
+    gen = th.stack(gen).reshape([HW, B, 1, 28, 28]).permute(1, 0, 2, 3, 4)
     samples = samples.reshape([B, C, 28, 28]).cpu()
     writer.add_video('sampling_process', utils.combine_imgs(gen, 5, 5)[None,:,None], epoch, fps=60)
     writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
@@ -71,7 +71,7 @@ class TransformerCNN(utils.Autoreg):
 class CausalSelfAttention(nn.Module):
   """
   A vanilla multi-head masked self-attention layer with a projection at the end.
-  It is possible to use torch.nn.MultiheadAttention here but I am including an
+  It is possible to use th.nn.MultiheadAttention here but I am including an
   explicit implementation here to show that there is nothing too scary here.
   """
   def __init__(self, block_size, C):
@@ -85,7 +85,7 @@ class CausalSelfAttention(nn.Module):
     # output projection
     self.proj = nn.Linear(C.n_embed, C.n_embed)
     # causal mask to ensure that attention is only applied to the left in the input sequence
-    self.register_buffer("mask", torch.tril(torch.ones(self.block_size, self.block_size)).view(1, 1, self.block_size, self.block_size))
+    self.register_buffer("mask", th.tril(th.ones(self.block_size, self.block_size)).view(1, 1, self.block_size, self.block_size))
     self.n_head = C.n_head
 
   def forward(self, x, layer_past=None):
