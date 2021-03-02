@@ -1,98 +1,106 @@
-# Denoising Diffusion Probabilistic Models (aka Diffusion Models, aka DDPMs)
+# Diffusion Models
 
-There are many related ideas, but the line can be traced to: https://arxiv.org/pdf/1503.03585.pdf.
+This implementation is based on [Denoising Diffusion Probabilistic Modeling (2020)](https://arxiv.org/pdf/2006.11239.pdf)
+and [Improved Denoising Diffusion Probabilistic Modeling (2021)](https://arxiv.org/pdf/2102.09672.pdf), which build off
+[Deep Unsupervised Learning using Nonequilibrium Thermodynamics (2015)](https://arxiv.org/pdf/1503.03585.pdf).
 
-I chose the Ho and followup Nichol+Dhariwal work because (1) produces great samples, and (2) produces great log-likelihoods.
+**Contents**
+- [Analogies with other generative models](#analogies-with-other-generative-models)
+  - [Flows](#flows)
+  - [VAEs](#vaes)
+  - [Autoregressive models](#autoregressive-models)
+- [Terminology](#terminology)
+  - [What is "diffusion"?](#what-is-diffusion)
+  - [What is "score matching"?](#what-is-score-matching)
+  - [What is "Langevin dynamics"?](#what-is-langevin-dynamics)
+  - [Next section](#next-section)
+- [Changes that Improved DDPMs introduces:](#changes-that-improved-ddpms-introduces)
+- [Related papers](#related-papers)
 
+## Analogies with other generative models
+### Flows
+[diagram of flows vs. diffusion models]
 
-## Analogies with Flows and VAEs
+Diffusion models kind of look like flows.
+For generating an image, you start with noise that is the same size of the image
+and you pass it through several processing layers to gradually convert that noise into an image.
 
-**Flows.**
-This is kind of like flows, since your latents are in the same size as your data.
-But you are using gaussian noise as the normalizing direction, and the reverse process is using learned function.
-So this gives you more flexibility in networks. Also you can skip steps and your sampling can skip steps.
-Also you can reuse that same network over again.
+Other than that, they are pretty different. The forward "normalizing" process in diffusion models consists of gradually
+adding small amounts of Gaussian noise until all signal is erased.
+The reverse process uses a learned function to gradually remove Gaussian noise until a sample from the data distribution is produced. 
+
+Diffusion models are not constrained to be bijective mappings; the forward process just adds
+Gaussian noise and the reverse process is trained to undo that noise.
+They also generally apply the same network over and over again for denoising, and they condition on a time index.
+Also you can skip steps and your sampling can skip steps. 
+
+### VAEs
+[diagram of vaes vs. diffusion models, graphical model]
+(indicate that arrows show the reverse diffusion direction.)
+
+Diffusion models can be described by a directed graphical model and trained with a variational bound, like VAEs.
+VAEs assume there are latent properties $z$ which underly the process that generates the data $x$.
+The variational bound for VAEs looks like: 
+$$L^{\text{VAE}}_{\text{VLB}} = \underbrace{-log p_\theta(x|z)}_\text{reconstruction} + \underbrace{KL(q_\phi(z|x) || p(z))}_{\sim \text{regularize encoder, make it possible to sample z}}$$
+
+Diffusion models instead assume a Markov chain, whereby the latents
+are the noisy intermediate versions of the data.
+(You can imagine this corresponds to a physical diffusion process, where a gas
+gradually diffuses in a room to reach a higher entropy state over time T.
+If you could reverse that diffusion process, you could recover where
+the gas particles started out (maybe they were in the shape of a smiley face).)
+If we considered $x_{T}, x_{T-1}, ... x_{1}$ as the latents and used a multi-step graphical model,
+the variational lower bound for this model looks somewhat similar to the VAE one:
+$$L^{\text{Diffusion}}_{\text{VLB}} = \underbrace{-log p_\theta(x_0|x_1)}_{\text{reconstruction}} + \underbrace{\sum_{t=1}^{T} KL(q(x_{t-1}|x_t, x_0) || p_\theta(x_{t-1}|x_t))}_{\sim \text{inject noisy information from $x_0$ to train $p_\theta$}} + \underbrace{KL(q(x_T|x_0) || p(x_T))}_\text{negligible. $q(x_T|x_0)$ is pure noise}$$
+
+In this case, we don't need to learn an approximate posterior $(q(x_{t-1}|x_t,x_0))$ because we can
+compute it directly by a chain of Gaussian noise.
+
+### Autoregressive models
+[diagram of autoregressive property, or sampling process for autoregs and diffusion processes.]
+
+Diffusion models have a notion of progressively producing a sample by running many forward
+passes of the same network, and conditioning on prior generation.
+However, it does not require you to define and respect an autoregressive ordering on the data.
+The number of processing steps is not strictly dependent on the dimensionality of the data and can be chosen as a hyperparameter.
+During sampling, you can reduce the number of processing steps. 
+
+## Terminology
 
 And because you are using gaussians, there is some math that says the reverse process can be described
 in the same functional form (so theoretically, it should be possible to recover images by tracing back the guassian noise).
-
 It's like this idea of chained probabilities.
 
-**VAEs.**
-It's also kind of like a VAE.
-We are going to describe by analogy with vaes.
-Also in the graphical model, we are going to condition on the x0.
-In the VAE case, the approx posterior was p(z|x) and we learned that.
-In this case, it is a fixed process by which we just inject noise.
-Since it is same sized as the data.
-
-So like a way, but there are many intermediary steps and the latent is same sized.
-
-
-The latents are the x_T>1.
-
-
-**Autoregs.**
-
-There is a notion of progressively sampling. But the number of steps
-is not dependent on the dimensionality of the data. So you can set a number
-and in practice, make it not very many steps.
-This iterative process seems pretty powerful.
-
-
-
-
-Cool how it is the same network applied over and over.
-This makes me think it could be useful for thinking. You
-just run this as many steps as you can, with an RNN to improve your thought.
-You don't need to train it for many recurrent steps actually.
-You can just run it at different steps, as is done in training.
-Very cool. Actually extremely cool.
-Wait holy shit.
-
-
-## Changes that Improved DDPMs introduces:
-- learning the variance through that thing
-- using hybrid = simple + 1e-4*vlb
-- cosine schedule
-- skipping during sampling.
-
-
-
-## Terminology
 
 ### What is "diffusion"?
 
 https://en.wikipedia.org/wiki/Diffusion
 
-This work takes inspiration from physics. You can imagine pouring a bunch of different chemicals
-in a vat of water and they will all mix together and become a mixture with highest entropy.
-For information, you can imagine transmitting data along a noisy analog channel and it
-will get increasingly noisy the farther it travels.
-This is a natural process. Things mix and get noisier. It's easy to add noise, harder to take it away.
-This is the forward diffusion process.
+There are many analogies between statistical mechanics and the probability theory developed for that 
+and machine learning systems (for example "temperatures" in sampling, and Boltzmann machines).
+"Difussion" here refers to the physical process. You can imagine a concentrated
+gas gradually diffusing in a room over time, until it reaches it's highest entropy state.
+Over time, you gradually lose information about that gas.
+This is the forward process of diffusion. It happens naturally. It is quite easy
+to inject noise in a system. It is harder to reduce that noise. 
 
-We can also imagine a reverse diffusion process, something that removes noise, that separates out
-clean water from all of the chemicals that we added. But we know that we are going to have to put in work 
-to battle the entropy and clean up the signal. In reverse osmosis water treatment plants, we have to use
-high-pressure systems to pump water molecules through a semi-permeable membrane. We can climb up the entropy
-gradient, by using external effort. It costs energy to do.
-In this work, we are going to learn a network that does this work for us, and we are going to
-spend optimization to get something that can take noise/polutions to the data and undo them to clean
-it up.
+We can also imagine reverse diffusion processes, that can remove noise from a system, that can reduce it's entropy.
+According to 2nd law of thermodynamics, it's impossible to reduce the entropy of a closed system.
+So reverse diffusion requires spending external negative entropy (structure) to do this process.
+Forward diffusion happens naturally. Reverse diffusion costs.
+One example of a reverse diffusion process is in  [reverse osmosis water treatment plants](https://youtu.be/4RDA_B_dRQ0).
+Polluted water is in a higher entropy state than clean water. To remove these pollutants requires lots of
+energy to produce high-pressure gradients to pump water molecules through membranes that filter out pollutants.
 
-https://youtu.be/4RDA_B_dRQ0
-
-And roughly the way we are going to do this is by taking a data sample, adding noise to it, and
-training our network to undo the noise. 
-
-And specifically, we are going to use a markov chain graphical model, where small amounts of noise
-are added over many steps. Intuitively, this makes the learning problem easier because it's easy to
-remove a bit of noise at a time, rather than all at once. Doing it this way, also let's us apply some
-probabilistic math tricks that make the training more straightforward and let us specify log-likelihoods.
+In Denoising Diffusion Probabilistic Models, our forward process is Gaussian noise injection.
+And we are going to spend optimization to learn a network that can reverse the noise process and give
+us back clean samples.
 
 Physically and information theory-wise, this seems interesting. You are learning a network
 that can take a noise-shaped data and gradually create meaningful bits out of it.
+Intuitively, this makes the learning problem easier because it's easy to
+remove a bit of noise at a time, rather than all at once. Doing it this way, also let's us apply some
+probabilistic math tricks that make the training more straightforward and let us specify log-likelihoods.
 
 ### What is "score matching"?
 
@@ -115,37 +123,13 @@ This leads to the next question:
 
 It's basically using noisy SGD to create samples. you start with some initialization, then you run a few steps of gradient descent to get your sample. if you learn the gradient field instead of the original field, this would not require any backpropagation. which is the case for this paper.
 
-### Next section
-
-Now imagine you are trying to generate a sample p(x0).
-How do you do that?
-
-
-Ok they use importance sampling, as does the abbeel vae explaantion.
-
-We can't use the p to calculate this during training, since it won't correspond to
-good reverse diffusion. So we are going to use a MC version by using the .
-
-We can't sample from it because it requires knowing the reverse diffusion.
-But we have the forward process we can use.
-
-
-This is similar to the issue we have in VAEs, where if 
-
-
-
-So you've got forward diffusion, you're trying to learn the reverse diffusion.
-How you can do that is you taint the data and then try to untaint it.
-
-
-
-
-
+## Changes that Improved DDPMs introduces:
+- learning the variance through that thing
+- using hybrid = simple + 1e-4*vlb
+- cosine schedule
+- skipping during sampling.
 
 ## Related papers
 
-- 15
-- ho 
-- unixpickle
 - wavegrad
 - song + ermon score matching, ddim.

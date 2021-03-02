@@ -11,6 +11,10 @@ from gms.autoregs.pixelcnn import PixelCNN, LayerNorm, MaskConv2d
 class GatedPixelCNN(PixelCNN):
   DC = utils.AttrDict()
   DC.n_filters = 96
+  DC.n_layers = 5
+  DC.kernel_size = 7
+  DC.use_resblock = 0
+
   def __init__(self, C):
     super().__init__(C)
     input_shape = (1,28,28)
