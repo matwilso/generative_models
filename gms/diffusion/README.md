@@ -119,6 +119,8 @@ This leads to the next question:
 
 It's basically using noisy SGD to create samples. you start with some initialization, then you run a few steps of gradient descent to get your sample. if you learn the gradient field instead of the original field, this would not require any backpropagation. which is the case for this paper.
 
+This enables some multi-modality in samples. You follow different gradient paths.
+
 ## Changes that Improved DDPMs introduces:
 - learning the variance through that thing
 - using hybrid = simple + 1e-4*vlb

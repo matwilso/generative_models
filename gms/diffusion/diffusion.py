@@ -18,8 +18,8 @@ class DiffusionModel(utils.GM):
 
   def __init__(self, C):
     super().__init__(C)
-    self.net = UNetModel(1, 64, 2, 3, [4])
-    #self.net = BasicNet(C)
+    #self.net = UNetModel(1, 64, 2, 3, [])
+    self.net = BasicNet(C)
     betas = gd.get_named_beta_schedule(C.schedule, C.timesteps)
     loss_type = {
         'mse': gd.LossType.MSE,

@@ -24,7 +24,6 @@ def load_mnist(bs, binarize=True):
   else:
     tfs += [lambda x: x.float()]
     tfs += [lambda x: 2*x - 1]
-    tfs += [lambda x: F.pad(x, (2,2,2,2))]
   transform = transforms.Compose(tfs)
   train_dset = MNIST('data', transform=transform, train=True, download=True)
   test_dset = MNIST('data', transform=transform, train=False, download=True)
