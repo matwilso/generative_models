@@ -10,12 +10,20 @@ from .respace import SpacedDiffusion, space_timesteps
 class DiffusionModel(utils.GM):
   DC = utils.AttrDict()  # default C
   DC.binarize = 0  # don't binarize the data
+  DC.schedule = 'cosine'
+  DC.loss_type = 'mse'
 
   def __init__(self, C):
     super().__init__(C)
     self.net = BasicNet()
-    betas = gd.get_named_beta_schedule('cosine', 500)
-    self.diffusion = gd.GaussianDiffusion(betas=betas, loss_type=gd.LossType.MSE)
+    betas = gd.get_named_beta_schedule(C.schedule, 500)
+    loss_type = {
+      'mse': gd.LossType.MSE,
+      'rmse': gd.LossType.RESCALED_MSE,
+      'kl': gd.LossType.KL,
+      'rkl': gd.LossType.RESCALED_KL,
+    }
+    self.diffusion = gd.GaussianDiffusion(betas=betas, loss_type=loss_type[C.loss_type])
     self.optimizer = Adam(self.parameters(), lr=C.lr)
 
   def train_step(self, y):

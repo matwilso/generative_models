@@ -1,3 +1,5 @@
+# Autoregressive models
+
 For autoregressive models, you need to ensure that you can only look at the past, both during training and during sampling.
 
 There are broadly two ways of achieving this: RNNs and masking.
