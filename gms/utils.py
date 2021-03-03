@@ -13,7 +13,7 @@ import numpy as np
 import yaml
 from torch import distributions as tdib
 
-def load_mnist(bs, binarize=True):
+def load_mnist(bs, binarize=True, pad32=False):
   from torchvision import transforms
   from torchvision.datasets import MNIST
   import torch.utils.data as data
@@ -24,6 +24,8 @@ def load_mnist(bs, binarize=True):
   else:
     tfs += [lambda x: x.float()]
     tfs += [lambda x: 2*x - 1]
+  if pad32:
+    tfs += [lambda x: F.pad(x, (2,2,2,2))]
   transform = transforms.Compose(tfs)
   train_dset = MNIST('data', transform=transform, train=True, download=True)
   test_dset = MNIST('data', transform=transform, train=False, download=True)
@@ -129,9 +131,6 @@ def combine_imgs(arr, row=5, col=5):
   else:
     raise NotImplementedError()
 
-def mean_flat(tensor):
-  """Take the mean over all non-batch dimensions."""
-  return tensor.mean(dim=list(range(1, len(tensor.shape))))
 
 def append_location(x):
   """add xy coords to every pixel"""

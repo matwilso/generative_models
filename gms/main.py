@@ -24,6 +24,7 @@ C.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
 C.lr = 3e-4
 C.class_cond = 0
 C.binarize = 1
+C.pad32 = 0
 
 if __name__ == '__main__':
   # PARSE CMD LINE
@@ -54,7 +55,7 @@ if __name__ == '__main__':
   model = Model(C=C).to(C.device)
   writer = SummaryWriter(C.logdir)
   logger = utils.dump_logger({}, writer, 0, C)
-  train_ds, test_ds = utils.load_mnist(C.bs, binarize=C.binarize)
+  train_ds, test_ds = utils.load_mnist(C.bs, binarize=C.binarize, pad32=C.pad32)
   num_vars = utils.count_vars(model)
   print('num_vars', num_vars)
 

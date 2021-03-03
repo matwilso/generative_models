@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 class SeqCache(nn.Sequential):
   """Sequential, but cache all intermediary outputs"""
+
   def forward(self, x):
     all_outs = [x]
     for module in self:
@@ -17,10 +18,11 @@ class SeqCache(nn.Sequential):
 
 class SeqFeed(nn.Sequential):
   """Sequential, but feed in cached inputs"""
+
   def forward(self, x, feed, emb=None):
     for i, module in enumerate(self):
       x = th.cat([x, feed[i]], axis=1)
-      x += emb[...,None,None]
+      x += emb[..., None, None]
       x = module(x)
       x = F.silu(x)
     return x
@@ -28,13 +30,13 @@ class SeqFeed(nn.Sequential):
 class BasicNet(nn.Module):
   def __init__(self, C):
     super().__init__()
-    time_embed_dim = 64 * 8
+    H = C.hidden_size
+    time_embed_dim = 2 * H
     self.time_embed = nn.Sequential(
         nn.Linear(64, time_embed_dim),
         nn.SiLU(),
         nn.Linear(time_embed_dim, time_embed_dim),
     )
-    H = C.hidden_size
     self.cin = nn.Conv2d(1, H, 3, padding=1)
     self.down = SeqCache(
         nn.Conv2d(H, H, 3, stride=2, padding=1),

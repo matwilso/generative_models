@@ -10,7 +10,8 @@ from .respace import SpacedDiffusion, space_timesteps
 
 class DiffusionModel(utils.GM):
   DC = utils.AttrDict()  # default C
-  DC.binarize = 0  # don't binarize the data
+  DC.binarize = 0
+  DC.pad32 = 0
   DC.schedule = 'cosine'
   DC.loss_type = 'mse'
   DC.timesteps = 500
@@ -18,17 +19,14 @@ class DiffusionModel(utils.GM):
 
   def __init__(self, C):
     super().__init__(C)
-    #self.net = UNetModel(1, 64, 2, 3, [])
-    self.net = BasicNet(C)
-    betas = gd.get_named_beta_schedule(C.schedule, C.timesteps)
-    loss_type = {
-        'mse': gd.LossType.MSE,
-        'rmse': gd.LossType.RESCALED_MSE,
-        'kl': gd.LossType.KL,
-        'rkl': gd.LossType.RESCALED_KL,
-    }
-    self.diffusion = gd.GaussianDiffusion(betas=betas, loss_type=loss_type[C.loss_type])
+    self.net = UNetModel(1, 64, 2, 3, [4])
+    #self.net = BasicNet(C)
+    self.diffusion = gd.GaussianDiffusion(C.timesteps)
     self.optimizer = Adam(self.parameters(), lr=C.lr)
+    if C.pad32:
+      self.size = 32
+    else:
+      self.size = 28
 
   def train_step(self, x):
     self.optimizer.zero_grad()
@@ -45,16 +43,16 @@ class DiffusionModel(utils.GM):
     return loss, metrics
 
   def evaluate(self, writer, x, epoch):
-    sample = self.diffusion.p_sample_loop_progressive(
-        self.net,
-        (25, 1, 32, 32),
-        clip_denoised=True
-    )
+    def proc(x):
+      x = ((x + 1) * 127.5).clamp(0, 255).to(th.uint8).cpu()
+      if self.C.pad32:
+        x = x[...,2:-2,2:-2]
+      return x
+    all_samples = self.diffusion.p_sample( self.net, (25, 1, self.size, self.size))
     samples, preds = [], []
-    def p(x): return ((x + 1) * 127.5).clamp(0, 255).to(th.uint8).cpu()[...,2:-2,2:-2]
-    for s in sample:
-      samples += [p(s['sample'])]
-      preds += [p(s['pred_xstart'])]
+    for s in all_samples:
+      samples += [proc(s['sample'])]
+      preds += [proc(s['pred_xstart'])]
 
     sample = samples[-1]
     writer.add_image('samples', utils.combine_imgs(sample, 5, 5)[None], epoch)

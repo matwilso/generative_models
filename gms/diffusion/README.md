@@ -62,7 +62,7 @@ If we define a multi-step graphical model, with $x_{T}, x_{T-1}, ... x_{1}$ as t
 the variational lower bound loosely resembles the VAE one:
 $$L^{\text{Diffusion}}_{\text{VLB}} = \underbrace{-log p_\theta(x_0|x_1)}_{\text{reconstruction}} + \underbrace{\sum_{t=1}^{T} KL(q(x_{t-1}|x_t, x_0) || p_\theta(x_{t-1}|x_t))}_{\sim \text{inject noisy information from $x_0$ to train $p_\theta$}} + \underbrace{KL(q(x_T|x_0) || p(x_T))}_\text{negligible. $q(x_T|x_0)$ is pure noise}$$
 
-For diffusion models, we don't need to learn an approximate posterior $(q(x_{t-1}|x_t,x_0))$ because we can compute it directly as a function of Gaussian noise applied to the data.
+For diffusion models, we don't need to learn an approximate posterior $(q(x_{t-1}|x_t,x_0))$ because we can compute it directly as a function of Gaussian noise applied to the data. It has the same direction as the forward process, except it gets to condition on x0. Minimizing the KL between these has the interpretation of injecting signal about x0 into p_\theta.
 
 ### Autoregressive models
 ![diagram of autoregressive property, or sampling process for autoregs and diffusion processes.](../../assets/autoreg_ddpm_draw.jpg)
@@ -120,6 +120,7 @@ This leads to the next question:
 It's basically using noisy SGD to create samples. you start with some initialization, then you run a few steps of gradient descent to get your sample. if you learn the gradient field instead of the original field, this would not require any backpropagation. which is the case for this paper.
 
 This enables some multi-modality in samples. You follow different gradient paths.
+
 
 ## Changes that Improved DDPMs introduces:
 - learning the variance through that thing
