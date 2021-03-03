@@ -7,10 +7,45 @@ from collections import defaultdict
 import torch as thvision
 import torch as th
 from torch import nn
+import torch.nn.functional as F
 from torch.optim import Adam
 import numpy as np
 import yaml
 from torch import distributions as tdib
+
+def load_mnist(bs, binarize=True):
+  from torchvision import transforms
+  from torchvision.datasets import MNIST
+  import torch.utils.data as data
+
+  tfs = [transforms.ToTensor()]
+  if binarize:
+    tfs += [lambda x: (x > 0.5).float()]
+  else:
+    tfs += [lambda x: x.float()]
+    tfs += [lambda x: 2*x - 1]
+    tfs += [lambda x: F.pad(x, (2,2,2,2))]
+  transform = transforms.Compose(tfs)
+  train_dset = MNIST('data', transform=transform, train=True, download=True)
+  test_dset = MNIST('data', transform=transform, train=False, download=True)
+
+  train_loader = data.DataLoader(train_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
+  test_loader = data.DataLoader(test_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
+  return train_loader, test_loader
+
+def dump_logger(logger, writer, i, C):
+  print('=' * 30)
+  print(i)
+  for key in logger:
+    val = np.mean(logger[key])
+    writer.add_scalar(key, val, i)
+    print(key, val)
+  print(C.full_cmd)
+  with open(pathlib.Path(C.logdir) / 'hps.yaml', 'w') as f:
+    yaml.dump(C, f)
+  print('=' * 30)
+  writer.flush()
+  return defaultdict(lambda: [])
 
 def args_type(default):
   if isinstance(default, bool):
@@ -80,25 +115,6 @@ class BinaryHead(nn.Module):
     x = self.layer(x)
     return tdib.Bernoulli(logits=x)
 
-def dump_logger(logger, writer, i, C):
-  print('=' * 30)
-  print(i)
-  for key in logger:
-    val = np.mean(logger[key])
-    writer.add_scalar(key, val, i)
-    print(key, val)
-  print(C.full_cmd)
-  with open(pathlib.Path(C.logdir) / 'hps.yaml', 'w') as f:
-    yaml.dump(C, f)
-  print('=' * 30)
-  writer.flush()
-  return defaultdict(lambda: [])
-
-def append_location(x):
-  """add xy coords to every pixel"""
-  XY = th.stack(th.meshgrid(th.linspace(0, 1, 28), th.linspace(0, 1, 28)), 0).to(x.device)
-  return th.cat([x, XY[None].repeat_interleave(x.shape[0], 0)], 1)
-
 def combine_imgs(arr, row=5, col=5):
   """takes batch of video or image and pushes the batch dim into certain image shapes given by b,row,col"""
   if len(arr.shape) == 4:  # image
@@ -114,21 +130,11 @@ def combine_imgs(arr, row=5, col=5):
   else:
     raise NotImplementedError()
 
-def load_mnist(bs, binarize=True):
-  from torchvision import transforms
-  from torchvision.datasets import MNIST
-  import torch.utils.data as data
+def mean_flat(tensor):
+  """Take the mean over all non-batch dimensions."""
+  return tensor.mean(dim=list(range(1, len(tensor.shape))))
 
-  tfs = [transforms.ToTensor()]
-  if binarize:
-    tfs += [lambda x: (x > 0.5).float()]
-  else:
-    tfs += [lambda x: x.float()]
-    tfs += [lambda x: 2*x - 1]
-  transform = transforms.Compose(tfs)
-  train_dset = MNIST('data', transform=transform, train=True, download=True)
-  test_dset = MNIST('data', transform=transform, train=False, download=True)
-
-  train_loader = data.DataLoader(train_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
-  test_loader = data.DataLoader(test_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
-  return train_loader, test_loader
+def append_location(x):
+  """add xy coords to every pixel"""
+  XY = th.stack(th.meshgrid(th.linspace(0, 1, 28), th.linspace(0, 1, 28)), 0).to(x.device)
+  return th.cat([x, XY[None].repeat_interleave(x.shape[0], 0)], 1)

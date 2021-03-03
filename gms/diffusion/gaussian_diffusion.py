@@ -10,6 +10,7 @@ import torch as th
 from .losses import normal_kl, discretized_gaussian_log_likelihood
 import enum
 import math
+from gms import utils
 
 class LossType(enum.Enum):
   MSE = enum.auto()  # use raw MSE loss (and KL when learning variances)
@@ -26,6 +27,7 @@ class GaussianDiffusion:
 
   Ported directly from here, and then adapted over time to further experimentation.
   https://github.com/hojonathanho/diffusion/blob/1e0dceb3b3495bbe19116a5e1b3596cd0706c543/diffusion_tf/diffusion_utils_2.py#L42
+  Then further ported by matwilso from: https://github.com/openai/improved-diffusion
 
   :param betas: a 1-D numpy array of betas for each diffusion timestep, starting at T and going to 1.
   :param loss_type: a LossType determining the loss function to use.
@@ -165,12 +167,7 @@ class GaussianDiffusion:
     pred_xstart = process_xstart(self._predict_xstart_from_eps(x_t=x, t=t, eps=model_output))
     model_mean, _, _ = self.q_posterior_mean_variance(x_start=pred_xstart, x_t=x, t=t)
     assert (model_mean.shape == model_log_variance.shape == pred_xstart.shape == x.shape)
-    return {
-        "mean": model_mean,
-        "variance": model_variance,
-        "log_variance": model_log_variance,
-        "pred_xstart": pred_xstart,
-    }
+    return {"mean": model_mean, "variance": model_variance, "log_variance": model_log_variance, "pred_xstart": pred_xstart, }
 
   def _predict_xstart_from_eps(self, x_t, t, eps):
     assert x_t.shape == eps.shape
@@ -316,11 +313,11 @@ class GaussianDiffusion:
     true_mean, _, true_log_variance_clipped = self.q_posterior_mean_variance(x_start=x_start, x_t=x_t, t=t)
     out = self.p_mean_variance(model, x_t, t, clip_denoised=clip_denoised, model_kwargs=model_kwargs)
     kl = normal_kl(true_mean, true_log_variance_clipped, out["mean"], out["log_variance"])
-    kl = mean_flat(kl) / np.log(2.0)
+    kl = utils.mean_flat(kl) / np.log(2.0)
 
     decoder_nll = -discretized_gaussian_log_likelihood(x_start, means=out["mean"], log_scales=0.5 * out["log_variance"])
     assert decoder_nll.shape == x_start.shape
-    decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
+    decoder_nll = utils.mean_flat(decoder_nll) / np.log(2.0)
 
     # At the first timestep return the decoder NLL,
     # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
@@ -369,7 +366,7 @@ class GaussianDiffusion:
 
       target = noise
       assert model_output.shape == target.shape == x_start.shape
-      terms["mse"] = mean_flat((target - model_output) ** 2)
+      terms["mse"] = utils.mean_flat((target - model_output) ** 2)
       if "vb" in terms:
         terms["loss"] = terms["mse"] + terms["vb"]
       else:
@@ -395,7 +392,7 @@ class GaussianDiffusion:
     kl_prior = normal_kl(
         mean1=qt_mean, logvar1=qt_log_variance, mean2=0.0, logvar2=0.0
     )
-    return mean_flat(kl_prior) / np.log(2.0)
+    return utils.mean_flat(kl_prior) / np.log(2.0)
 
   def calc_bpd_loop(self, model, x_start, clip_denoised=True, model_kwargs=None):
     """
@@ -436,9 +433,9 @@ class GaussianDiffusion:
             model_kwargs=model_kwargs,
         )
       vb.append(out["output"])
-      xstart_mse.append(mean_flat((out["pred_xstart"] - x_start) ** 2))
+      xstart_mse.append(utils.mean_flat((out["pred_xstart"] - x_start) ** 2))
       eps = self._predict_eps_from_xstart(x_t, t_batch, out["pred_xstart"])
-      mse.append(mean_flat((eps - noise) ** 2))
+      mse.append(utils.mean_flat((eps - noise) ** 2))
 
     vb = th.stack(vb, dim=1)
     xstart_mse = th.stack(xstart_mse, dim=1)
@@ -446,13 +443,7 @@ class GaussianDiffusion:
 
     prior_bpd = self._prior_bpd(x_start)
     total_bpd = vb.sum(dim=1) + prior_bpd
-    return {
-        "total_bpd": total_bpd,
-        "prior_bpd": prior_bpd,
-        "vb": vb,
-        "xstart_mse": xstart_mse,
-        "mse": mse,
-    }
+    return {"total_bpd": total_bpd, "prior_bpd": prior_bpd, "vb": vb, "xstart_mse": xstart_mse, "mse": mse, }
 
 def _ext(arr, timesteps, broadcast_shape):
   """
@@ -468,10 +459,6 @@ def _ext(arr, timesteps, broadcast_shape):
   while len(res.shape) < len(broadcast_shape):
     res = res[..., None]
   return res.expand(broadcast_shape)
-
-def mean_flat(tensor):
-  """Take the mean over all non-batch dimensions."""
-  return tensor.mean(dim=list(range(1, len(tensor.shape))))
 
 def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
   """

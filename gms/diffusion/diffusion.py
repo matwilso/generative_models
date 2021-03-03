@@ -3,7 +3,8 @@ from torch import nn
 from torch.optim import Adam
 import gms
 from gms import utils
-from .basicnet import BasicNet, SiLU, timestep_embedding
+from .basicnet import BasicNet, timestep_embedding
+from .unet import UNetModel
 from . import gaussian_diffusion as gd
 from .respace import SpacedDiffusion, space_timesteps
 
@@ -17,7 +18,8 @@ class DiffusionModel(utils.GM):
 
   def __init__(self, C):
     super().__init__(C)
-    self.net = BasicNet(C)
+    self.net = UNetModel(1, 64, 2, 3, [4])
+    #self.net = BasicNet(C)
     betas = gd.get_named_beta_schedule(C.schedule, C.timesteps)
     loss_type = {
         'mse': gd.LossType.MSE,
@@ -45,11 +47,11 @@ class DiffusionModel(utils.GM):
   def evaluate(self, writer, x, epoch):
     sample = self.diffusion.p_sample_loop_progressive(
         self.net,
-        (25, 1, 28, 28),
+        (25, 1, 32, 32),
         clip_denoised=True
     )
     samples, preds = [], []
-    def p(x): return ((x + 1) * 127.5).clamp(0, 255).to(th.uint8).cpu()
+    def p(x): return ((x + 1) * 127.5).clamp(0, 255).to(th.uint8).cpu()[...,2:-2,2:-2]
     for s in sample:
       samples += [p(s['sample'])]
       preds += [p(s['pred_xstart'])]
