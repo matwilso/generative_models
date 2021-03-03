@@ -90,24 +90,22 @@ class ResBlock(nn.Module):
     return x + h
 
 class BasicNet(nn.Module):
-  def __init__(self):
+  def __init__(self, C):
     super().__init__()
-    self.cin = nn.Conv2d(1, 128, 3, padding=1)
-    self.r1 = ResBlock(128, 256)
-    self.r2 = ResBlock(128, 256)
-    self.r3 = ResBlock(128, 256)
-    self.cout = nn.Conv2d(128, 2, 3, padding=1)
-
     time_embed_dim = 64 * 4
+    self.cin = nn.Conv2d(1, C.hidden_size, 3, padding=1)
+    self.r1 = ResBlock(C.hidden_size, time_embed_dim)
+    self.r2 = ResBlock(C.hidden_size, time_embed_dim)
+    self.r3 = ResBlock(C.hidden_size, time_embed_dim)
+    self.cout = nn.Conv2d(C.hidden_size, 2, 3, padding=1)
+
     self.time_embed = nn.Sequential(
         nn.Linear(64, time_embed_dim),
         SiLU(),
         nn.Linear(time_embed_dim, time_embed_dim),
     )
 
-
   def forward(self, x, timesteps):
-    timesteps
     emb = self.time_embed(timestep_embedding(timesteps.float(), 64))
     x = self.cin(x)
     x = self.r1(x, emb)

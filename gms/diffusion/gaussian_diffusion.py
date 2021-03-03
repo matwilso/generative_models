@@ -464,14 +464,10 @@ def _ext(arr, timesteps, broadcast_shape):
                           dimension equal to the length of timesteps.
   :return: a tensor of shape [batch_size, 1, ...] where the shape has K dims.
   """
-  try:
-    res = th.from_numpy(arr).to(device=timesteps.device)[timesteps].float()
-  except:
-    import ipdb; ipdb.set_trace()
+  res = th.from_numpy(arr).to(device=timesteps.device)[timesteps].float()
   while len(res.shape) < len(broadcast_shape):
     res = res[..., None]
   return res.expand(broadcast_shape)
-
 
 def mean_flat(tensor):
   """Take the mean over all non-batch dimensions."""
@@ -487,22 +483,15 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
   they are committed to maintain backwards compatibility.
   """
   if schedule_name == "linear":
-    # Linear schedule from Ho et al, extended to work for any number of
-    # diffusion steps.
+    # Linear schedule from Ho et al, extended to work for any number of diffusion steps.
     scale = 1000 / num_diffusion_timesteps
     beta_start = scale * 0.0001
     beta_end = scale * 0.02
-    return np.linspace(
-        beta_start, beta_end, num_diffusion_timesteps, dtype=np.float64
-    )
+    return np.linspace(beta_start, beta_end, num_diffusion_timesteps, dtype=np.float64)
   elif schedule_name == "cosine":
-    return betas_for_alpha_bar(
-        num_diffusion_timesteps,
-        lambda t: math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2,
-    )
+    return betas_for_alpha_bar(num_diffusion_timesteps, lambda t: math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2,)
   else:
     raise NotImplementedError(f"unknown beta schedule: {schedule_name}")
-
 
 def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
   """

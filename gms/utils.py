@@ -124,6 +124,7 @@ def load_mnist(bs, binarize=True):
     tfs += [lambda x: (x > 0.5).float()]
   else:
     tfs += [lambda x: x.float()]
+    tfs += [lambda x: 2*x - 1]
   transform = transforms.Compose(tfs)
   train_dset = MNIST('data', transform=transform, train=True, download=True)
   test_dset = MNIST('data', transform=transform, train=False, download=True)

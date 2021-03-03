@@ -33,16 +33,16 @@ if __name__ == '__main__':
   tempC, _ = parser.parse_known_args()
   # SETUP
   Model = {
-    'rnn': autoregs.RNN,
-    'made': autoregs.MADE,
-    'wavenet': autoregs.Wavenet,
-    'pixelcnn': autoregs.PixelCNN,
-    'gatedcnn': autoregs.GatedPixelCNN,
-    'transformer': autoregs.TransformerCNN,
-    'vae': vaes.VAE,
-    'vqvae': vaes.VQVAE,
-    'gan': gans.GAN,
-    'diffusion': diffusion.DiffusionModel,
+      'rnn': autoregs.RNN,
+      'made': autoregs.MADE,
+      'wavenet': autoregs.Wavenet,
+      'pixelcnn': autoregs.PixelCNN,
+      'gatedcnn': autoregs.GatedPixelCNN,
+      'transformer': autoregs.TransformerCNN,
+      'vae': vaes.VAE,
+      'vqvae': vaes.VQVAE,
+      'gan': gans.GAN,
+      'diffusion': diffusion.DiffusionModel,
   }[tempC.model]
   defaults = {'logdir': C.logdir / C.model}
   for key, value in Model.DC.items():
@@ -58,7 +58,7 @@ if __name__ == '__main__':
   num_vars = utils.count_vars(model)
   print('num_vars', num_vars)
 
-  # TRAINING LOOP 
+  # TRAINING LOOP
   for epoch in count():
     # TRAIN
     train_time = time.time()
@@ -68,7 +68,7 @@ if __name__ == '__main__':
       metrics = model.train_step(batch[0])
       for key in metrics:
         logger[key] += [metrics[key].detach().cpu()]
-    logger['dt/train'] = time.time()-train_time
+    logger['dt/train'] = time.time() - train_time
     # TEST
     model.eval()
     with th.no_grad():
@@ -85,7 +85,7 @@ if __name__ == '__main__':
       # run the model specific evaluate function. usually draws samples and creates other relevant visualizations.
       eval_time = time.time()
       model.evaluate(writer, test_batch[0], epoch)
-      logger['dt/evaluate'] = time.time()-eval_time
+      logger['dt/evaluate'] = time.time() - eval_time
     model.train()
     # LOGGING
     logger['num_vars'] = num_vars
