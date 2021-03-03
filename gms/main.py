@@ -7,8 +7,8 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from itertools import count
 import torch as th
-import gms
 from gms import utils
+from gms import autoregs, vaes, gans, diffusion
 
 # TRAINING SCRIPT
 
@@ -33,15 +33,16 @@ if __name__ == '__main__':
   tempC, _ = parser.parse_known_args()
   # SETUP
   Model = {
-    'rnn': gms.autoregs.RNN,
-    'made': gms.autoregs.MADE,
-    'wavenet': gms.autoregs.Wavenet,
-    'pixelcnn': gms.autoregs.PixelCNN,
-    'gatedcnn': gms.autoregs.GatedPixelCNN,
-    'transformer': gms.autoregs.TransformerCNN,
-    'vae': gms.vaes.VAE,
-    'vqvae': gms.vaes.VQVAE,
-    'gan': gms.gans.GAN,
+    'rnn': autoregs.RNN,
+    'made': autoregs.MADE,
+    'wavenet': autoregs.Wavenet,
+    'pixelcnn': autoregs.PixelCNN,
+    'gatedcnn': autoregs.GatedPixelCNN,
+    'transformer': autoregs.TransformerCNN,
+    'vae': vaes.VAE,
+    'vqvae': vaes.VQVAE,
+    'gan': gans.GAN,
+    'diffusion': diffusion.DiffusionModel,
   }[tempC.model]
   defaults = {'logdir': C.logdir / C.model}
   for key, value in Model.DC.items():

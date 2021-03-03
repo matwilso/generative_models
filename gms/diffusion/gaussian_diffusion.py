@@ -200,16 +200,12 @@ class GaussianDiffusion:
 
     assert model_output.shape == (B, C * 2, *x.shape[2:])
     model_output, model_var_values = th.split(model_output, C, dim=1)
-    min_log = _ext(
-        self.posterior_log_variance_clipped, t, x.shape
-    )
+    min_log = _ext(self.posterior_log_variance_clipped, t, x.shape)
     max_log = _ext(np.log(self.betas), t, x.shape)
     # The model_var_values is [-1, 1] for [min_var, max_var].
     frac = (model_var_values + 1) / 2
     model_log_variance = frac * max_log + (1 - frac) * min_log
     model_variance = th.exp(model_log_variance)
-    model_variance = _ext(model_variance, t, x.shape)
-    model_log_variance = _ext(model_log_variance, t, x.shape)
 
     def process_xstart(x):
       if denoised_fn is not None:
@@ -230,10 +226,7 @@ class GaussianDiffusion:
 
   def _predict_xstart_from_eps(self, x_t, t, eps):
     assert x_t.shape == eps.shape
-    return (
-        _ext(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t
-        - _ext(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * eps
-    )
+    return (_ext(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t - _ext(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * eps)
 
   def _predict_xstart_from_xprev(self, x_t, t, xprev):
     assert x_t.shape == xprev.shape
@@ -533,7 +526,10 @@ def _ext(arr, timesteps, broadcast_shape):
                           dimension equal to the length of timesteps.
   :return: a tensor of shape [batch_size, 1, ...] where the shape has K dims.
   """
-  res = th.from_numpy(arr).to(device=timesteps.device)[timesteps].float()
+  try:
+    res = th.from_numpy(arr).to(device=timesteps.device)[timesteps].float()
+  except:
+    import ipdb; ipdb.set_trace()
   while len(res.shape) < len(broadcast_shape):
     res = res[..., None]
   return res.expand(broadcast_shape)

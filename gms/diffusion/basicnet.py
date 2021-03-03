@@ -38,17 +38,15 @@ def normalization(channels):
   """
   return nn.GroupNorm(32, channels)
 
-def timestep_embedding(timesteps, dim, max_period=10000):
+def timestep_embedding(timesteps, dim, max_period=500):
   """
   Create sinusoidal timestep embeddings.
 
-  :param timesteps: a 1-D Tensor of N indices, one per batch element.
-                    These may be fractional.
+  :param timesteps: a 1-D Tensor of N indices, one per batch element. These may be fractional.
   :param dim: the dimension of the output.
   :param max_period: controls the minimum frequency of the embeddings.
   :return: an [N x dim] Tensor of positional embeddings.
   """
-  import ipdb; ipdb.set_trace()
   half = dim // 2
   freqs = th.exp(-math.log(max_period) * th.arange(start=0, end=half, dtype=th.float32) / half).to(device=timesteps.device)
   args = timesteps[:, None].float() * freqs[None]
@@ -86,8 +84,7 @@ class ResBlock(nn.Module):
     :return: an [N x C x ...] Tensor of outputs.
     """
     h = self.in_layers(x)
-    emb_out = self.emb_layers(emb).type(h.dtype)
-    import ipdb; ipdb.set_trace()
+    emb_out = self.emb_layers(emb).type(h.dtype)[...,None,None]
     h = h + emb_out
     h = self.out_layers(h)
     return x + h
@@ -95,9 +92,26 @@ class ResBlock(nn.Module):
 class BasicNet(nn.Module):
   def __init__(self):
     super().__init__()
-    self.r1 = ResBlock(1, 1)
+    self.cin = nn.Conv2d(1, 128, 3, padding=1)
+    self.r1 = ResBlock(128, 256)
+    self.r2 = ResBlock(128, 256)
+    self.r3 = ResBlock(128, 256)
+    self.cout = nn.Conv2d(128, 2, 3, padding=1)
+
+    time_embed_dim = 64 * 4
+    self.time_embed = nn.Sequential(
+        nn.Linear(64, time_embed_dim),
+        SiLU(),
+        nn.Linear(time_embed_dim, time_embed_dim),
+    )
+
 
   def forward(self, x, timesteps):
-    import ipdb; ipdb.set_trace()
-    x = self.r1(x, timesteps)
+    timesteps
+    emb = self.time_embed(timestep_embedding(timesteps.float(), 64))
+    x = self.cin(x)
+    x = self.r1(x, emb)
+    x = self.r2(x, emb)
+    x = self.r3(x, emb)
+    x = self.cout(x)
     return x
