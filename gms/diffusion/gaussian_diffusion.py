@@ -37,7 +37,7 @@ class GaussianDiffusion:
     self.posterior_mean_coef2 = ((1.0 - self.alphas_cumprod_prev) * np.sqrt(alphas) / (1.0 - self.alphas_cumprod))
     for key, val in self.__dict__.items():
       if isinstance(val, np.ndarray):
-        self.__dict__[key] = Extractable(val)
+        self.__dict__[key] = Extractable(val) # make them easy to index by time and broadcast
 
   # FORWARD DIFFUSION
   def q_sample(self, x_start, t, noise):
@@ -66,7 +66,7 @@ class GaussianDiffusion:
     frac = (model_var + 1) / 2  # The model_var is [-1, 1] for [min_var, max_var].
     model_log_variance = frac * max_log + (1 - frac) * min_log
     model_variance = th.exp(model_log_variance)
-    # Predict x start from eps
+    # Predict x_0 from eps. at any point, this is our best guess of the true output. it will vary and become refined as we reduce noise.
     pred_xstart = self.sqrt_recip_alphas_cumprod[t] * x - self.sqrt_recipm1_alphas_cumprod[t] * eps
     pred_xstart = pred_xstart.clamp(-1, 1)
 

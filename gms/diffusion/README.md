@@ -73,6 +73,12 @@ However, diffusion models do not require you to define and respect an autoregres
 The number of processing steps is not strictly dependent on the dimensionality of the data and can be chosen as a hyperparameter.
 And during sampling, you can reduce the number of processing steps. 
 
+### Energy-based models
+
+Diffusion models are also similar to EBMs in a way.
+To sample EBMs requires running a langevin dynamics process.
+But this is better because it is learned and principled.
+
 ## Terminology
 
 ### What is "diffusion"?
