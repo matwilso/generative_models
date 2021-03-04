@@ -46,8 +46,10 @@ There are many specific approaches to unsupervised learning that face different 
 It is unclear what the best approach is going to be, so it is wortwhile digging in to the details
 and really understanding the various approaches.
 This repo offers some intuitive explanations, and simple as possible code for demonstrating these
-systems on MNIST digits. For further resources, I would suggest the [Deep Unsupervised Learning Berkeley Course]((https://sites.google.com/view/berkeley-cs294-158-sp20/)) and the [Deep Learning Textbook (chapters 15-20)](https://www.deeplearningbook.org/).
-Parts of the autoregressive code are based on demos from the Berkeley course. 
+systems on MNIST digits. For further resources, I would suggest the [Deep Unsupervised Learning Berkeley Course](https://sites.google.com/view/berkeley-cs294-158-sp20/) and the [Deep Learning Textbook (chapters 15-20)](https://www.deeplearningbook.org/).
+(Parts of the autoregressive code are based on demos from the Berkeley course. Other parts of the code
+are based on various repos on the internet, which in turn are based on further upstream sources, and I provide links where relevant.
+I would claim that my [VQ-VAE](./gms/vaes/vqvae.py) and [Diffusion](./gms/diffusion/diffusion.py) models are among the simplest implementations out there.)
 
 <!--
 , so it is important
@@ -120,8 +122,8 @@ the code and lets you train it all in a single run.
 And we also use our TransformerCNN, instead of our PixelCNN.
 
 Also VQ-VAE usually produces codes in a 32x32 space, which is larger than an MNIST image lol.
-We downsample to 7x7 codes, where K=64, so it is 64-way categorical. This still amounts 
-to 64^49 possible values that the latent can take on. So you could say it's still pretty expressive.
+We instead downsample to 7x7 codes, which are 64-way categorical (K=64). This space still amounts 
+to 64^49 possible values that the latent can take on. So still pretty expressive.
 
 ```
 python main.py --model=vqvae 

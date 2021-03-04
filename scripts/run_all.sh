@@ -21,3 +21,4 @@ python gms/main.py --num_epochs=$num_epochs --model=transformer --logdir=logs/$l
 python gms/main.py --num_epochs=$num_epochs --model=vae --logdir=logs/$logdir/vae
 python gms/main.py --num_epochs=$num_epochs --model=vqvae --logdir=logs/$logdir/vqvae
 python gms/main.py --num_epochs=$num_epochs --model=gan --logdir=logs/$logdir/gan
+python gms/main.py --num_epochs=$num_epochs --model=diffusion --logdir=logs/$logdir/diffusion
