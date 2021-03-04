@@ -1,7 +1,6 @@
 # generative_models
 
-**Implementations of fundamental deep generative models. (currently: Autoregressive models, VAEs, and GANs)**
->*"It is important to view knowledge as sort of a semantic tree -- make sure you understand the fundamental principles, ie the trunk and big branches, before you get into the leaves/details or there is nothing for them to hang on to"* - Elon
+**Implementations of fundamental deep generative models. (currently: Autoregressive models, VAEs, GANs, and Diffusion models)**
 
 <!--, along with descriptions using simple language.-->
 
@@ -13,17 +12,20 @@ with explanations and code that are as simple as possible to understand.
 
 Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course.
 Some of these implementations won't scale far beyond MNIST, because they are designed to represent the fundamental ideas very concisely.
-(Most models are expressed within about 100 lines of code, including network architecture definitions.)
+(Most models are expressed within about 100 lines of code, including network architecture definitions---except for diffusion models; those get a bit hairy.)
 Some of them are super naive approaches, and it's just interesting to see how well they do on MNIST.
 
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard. See usage below.
-None of the performances here should be considered as hard evidence for or against an algorithm, as they have not been tuned and extra tricks have not been applied.
+The performance of these implementations should not be considered as evidence for or against an algorithm.
+They have not been well tuned in many cases, and extra tricks have not been applied.
 
 **Contents**
+- [Introduction](#introduction)
 - [Autoregressive models](#autoregressive-models)
 - [Variational Autoencoders (VAEs)](#variational-autoencoders-vaes)
 - [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
+- [Diffusion Models](#diffusion-models)
 - [Future](#future)
 
 **Install**
@@ -33,6 +35,44 @@ cd generative_models/
 pip install -e .
 pip install -r requirements.txt
 ```
+
+## Introduction
+
+>*"It is important to view knowledge as sort of a semantic tree -- make sure you understand the fundamental principles, ie the trunk and big branches, before you get into the leaves/details or there is nothing for them to hang on to"* - Elon
+
+Unsupervised learning and generative modeling are important areas of machine learning, because
+they allow us to extra many more bits from the environment than is possible with supervised learning and reinforcement learning.
+Unsupervised learning is what is going to allow us to build powerful machine systems that can look at the world and understand it.
+
+There are many specific approaches to unsupervised learning that face different trade-offs.
+It is unclear what the best approach is going to be, so it is wortwhile digging in to the details
+and really understanding the various approaches.
+This repo offers some intuitive explanations, and simple as possible code for demonstrating these
+systems on MNIST digits. For further resources, I would suggest the [Deep Unsupervised Learning Berkeley Course]((https://sites.google.com/view/berkeley-cs294-158-sp20/)) and the [Deep Learning Textbook (chapters 15-20)](https://www.deeplearningbook.org/)
+
+
+<!--
+, so it is important
+to understand the fundamental approaches.
+
+, that is going to be central
+to the future of the field, fundamentally because they allow us to extract more useful bits from the environment.
+And the cliched quote that "What I cannot create, I do not understand".
+
+Over the years, we have developed several ways of using neural networks to generate data. 
+You can break these into various classes, and each class faces various trade-offs and are useful in various settings.
+
+It is unclear which is ultimately the most useful.
+From 2015-2018, GANs were in the lead. But now I feel like
+likelihood based approaches, including autoregressive models (mostly because of Transformers) and 
+VAEs/VQVAEs have pulled ahead.
+But who knows what might be useful from older approaches, Flows, and other things that
+are just emerging or yet to be discovered.
+
+We decouple the implementations from complex architectures, when possible.
+The complex arches are important to understand. But also they add complexity to the core ideas.
+And should be treated in some isolation.
+-->
 
 ## [Autoregressive models](gms/autoregs)
 
@@ -95,10 +135,23 @@ python main.py --model=vqvae
 python main.py --model=gan 
 ```
 
+## [Diffusion Models](gms/diffusion/)
+
+```
+python main.py --model=diffusion 
+```
+
+(after 10 epochs of training. left: sampling process (x_500, x_499, x_498, ..., x_0), right: predictions of x_0, given current x_t.)
+
+![](assets/diffusion_sample_10.gif)
+![](assets/diffusion_10.gif)
+
+
 ## Future
-- Flows
-- Diffusion model
 - EBM
+- Flows (not for awhile. i got sick of flows after messing with them a bit ago. i find they're messy and it's easy to get lost in the sauce)
+- Non-generative self-supervised learning. contrastive.
+- Score matching?
 
 // TODO: more explanations of the algorithms <br>
 // TODO: add class condition <br>

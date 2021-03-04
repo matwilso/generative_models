@@ -1,2 +1,2 @@
-from gms.vaes.vae import VAE
-from gms.vaes.vqvae import VQVAE
+from .vae import VAE
+from .vqvae import VQVAE

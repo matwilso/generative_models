@@ -1,1 +1,1 @@
-from gms.gans.gan import GAN
+from .gan import GAN

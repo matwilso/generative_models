@@ -6,9 +6,9 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from itertools import count
-import torch
-import gms
+import torch as th
 from gms import utils
+from gms import autoregs, vaes, gans, diffusion
 
 # TRAINING SCRIPT
 
@@ -24,6 +24,7 @@ C.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
 C.lr = 3e-4
 C.class_cond = 0
 C.binarize = 1
+C.pad32 = 0
 
 if __name__ == '__main__':
   # PARSE CMD LINE
@@ -33,15 +34,16 @@ if __name__ == '__main__':
   tempC, _ = parser.parse_known_args()
   # SETUP
   Model = {
-    'rnn': gms.autoregs.RNN,
-    'made': gms.autoregs.MADE,
-    'wavenet': gms.autoregs.Wavenet,
-    'pixelcnn': gms.autoregs.PixelCNN,
-    'gatedcnn': gms.autoregs.GatedPixelCNN,
-    'transformer': gms.autoregs.TransformerCNN,
-    'vae': gms.vaes.VAE,
-    'vqvae': gms.vaes.VQVAE,
-    'gan': gms.gans.GAN,
+      'rnn': autoregs.RNN,
+      'made': autoregs.MADE,
+      'wavenet': autoregs.Wavenet,
+      'pixelcnn': autoregs.PixelCNN,
+      'gatedcnn': autoregs.GatedPixelCNN,
+      'transformer': autoregs.TransformerCNN,
+      'vae': vaes.VAE,
+      'vqvae': vaes.VQVAE,
+      'gan': gans.GAN,
+      'diffusion': diffusion.DiffusionModel,
   }[tempC.model]
   defaults = {'logdir': C.logdir / C.model}
   for key, value in Model.DC.items():
@@ -53,11 +55,11 @@ if __name__ == '__main__':
   model = Model(C=C).to(C.device)
   writer = SummaryWriter(C.logdir)
   logger = utils.dump_logger({}, writer, 0, C)
-  train_ds, test_ds = utils.load_mnist(C.bs, binarize=C.binarize)
+  train_ds, test_ds = utils.load_mnist(C.bs, binarize=C.binarize, pad32=C.pad32)
   num_vars = utils.count_vars(model)
   print('num_vars', num_vars)
 
-  # TRAINING LOOP 
+  # TRAINING LOOP
   for epoch in count():
     # TRAIN
     train_time = time.time()
@@ -67,10 +69,10 @@ if __name__ == '__main__':
       metrics = model.train_step(batch[0])
       for key in metrics:
         logger[key] += [metrics[key].detach().cpu()]
-    logger['dt/train'] = time.time()-train_time
+    logger['dt/train'] = time.time() - train_time
     # TEST
     model.eval()
-    with torch.no_grad():
+    with th.no_grad():
       # if we define an explicit loss function, use it to test how we do on the test set.
       if hasattr(model, 'loss'):
         for test_batch in test_ds:
@@ -84,7 +86,7 @@ if __name__ == '__main__':
       # run the model specific evaluate function. usually draws samples and creates other relevant visualizations.
       eval_time = time.time()
       model.evaluate(writer, test_batch[0], epoch)
-      logger['dt/evaluate'] = time.time()-eval_time
+      logger['dt/evaluate'] = time.time() - eval_time
     model.train()
     # LOGGING
     logger['num_vars'] = num_vars
@@ -92,6 +94,6 @@ if __name__ == '__main__':
     if epoch % C.save_n == 0:
       path = C.logdir / 'model.pt'
       print("SAVED MODEL", path)
-      torch.save(model.state_dict(), path)
+      th.save(model.state_dict(), path)
     if epoch >= C.num_epochs:
       break
