@@ -1,6 +1,6 @@
 # generative_models
 
-**Implementations of fundamental deep generative models. (currently: Autoregressive models, VAEs, and GANs)**
+**Implementations of fundamental deep generative models. (currently: Autoregressive models, VAEs, GANs, and Diffusion models)**
 >*"It is important to view knowledge as sort of a semantic tree -- make sure you understand the fundamental principles, ie the trunk and big branches, before you get into the leaves/details or there is nothing for them to hang on to"* - Elon
 
 <!--, along with descriptions using simple language.-->
@@ -19,12 +19,14 @@ Some of them are super naive approaches, and it's just interesting to see how we
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard. See usage below.
 None of the performances here should be considered as hard evidence for or against an algorithm,
-as they are not tuned.
+as they are not tuned and extra tricks have not been applied.
 
 **Contents**
+- [Introduction](#introduction)
 - [Autoregressive models](#autoregressive-models)
 - [Variational Autoencoders (VAEs)](#variational-autoencoders-vaes)
 - [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
+- [Diffusion Models](#diffusion-models)
 - [Future](#future)
 
 **Install**
@@ -111,22 +113,26 @@ python main.py --model=vqvae
 ```
 ## [Generative Adversarial Networks (GANs)](gms/gans/)
 
-GANs are a type of implicit model.
-
-Implicit models work by basically training a discriminator of some sort.
-For GAN, that is what it is. It could also be trained with contrastive learning.
-Like in EBMs, where it happens that you use the same network for both.
-
-
-
-
 #### [GAN (vanilla/scaled down DCGAN)](gms/gans/gan.py)
 ```
 python main.py --model=gan 
 ```
 
+## [Diffusion Models](gms/diffusion/)
+
+
+#### [(Improved) Denoising Diffusion Probabilistic Model](gms/diffusion/diffusion.py)
+```
+python main.py --model=diffusion 
+```
+
+(after 10 epochs of training. left: sampling process (x_500, x_499, x_498, ..., x_0), right: predictions of x_0, given current x_t.)
+
+![](assets/diffusion_sample_10.gif)
+![](assets/diffusion_10.gif)
+
+
 ## Future
-- Diffusion model
 - EBM
 - Flows (not for awhile. i got sick of flows after messing with them a bit ago. i find they're messy and it's easy to get lost in the sauce)
 - Non-generative self-supervised learning. contrastive.

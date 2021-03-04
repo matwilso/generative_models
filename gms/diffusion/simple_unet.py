@@ -44,7 +44,7 @@ class SimpleUnet(nn.Module):
     return x
 
 class Downsample(nn.Module):
-  """half the size of the input"""
+  """halve the size of the input"""
   def __init__(self, channels, out_channels=None, stride=2):
     super().__init__()
     out_channels = out_channels or channels

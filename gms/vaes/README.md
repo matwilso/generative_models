@@ -1,17 +1,16 @@
 # Variational AutoEncoders
-- [Variational AutoEncoder (vanilla)](#variational-autoencoder-vanilla)
+- [Variational AutoEncoder](#variational-autoencoder)
   - [Quick explanation](#quick-explanation)
   - [Long explanation](#long-explanation)
-- [Derivation](#derivation)
-- [Latent variable models](#latent-variable-models)
-- [Examples](#examples)
 
 ## Variational AutoEncoder
 
 https://arxiv.org/abs/1312.6114
 
+<!--
 [make a diagram]
-image --> encode --> z normal --> decode --> image
+image -> encode -> z normal -> decode -> image
+-->
 
 ### Quick explanation
 
@@ -29,34 +28,23 @@ us generate samples by just sampling from a standard Normal.
 
 ### Long explanation
 
-If you only need to train some simple VAEs in standard situations, the quick understanding is probably sufficient.
-But if you encounter non-standard and more complex scenarios, it helps to have more background on variational
-inference and the theory behind VAEs.
-There are always leaky abstractions, and digging down and understanding the details is
-the only way to robustly handle new situations and extensions.
-
-(This assumes some understanding, but not deep familiarity with the math, because if you are already deeply familiar, you wouldn't be here.
-I am trying to describe the methods in simple language, which is harder because you can't just use a term that lets you stop
-asking questions. It takes more words to describe, but you get a fuller picture, especially if you don't already have
-the math background. I would also recommned the USL course lecture, which covers more ground, but moves quickly.
-
-I find most other explanations skip over steps of reasoning. They are there if you are deeply familiar with
-probability.)
-
-[make a better diagram, with encoder, decoder, prior]
 ![](../../assets/vae_graphical.png)
+<!--[make a better diagram, with encoder, decoder, prior]-->
 
-VAEs assume a structured probabilistic graphical model, that just means we are going to make up some assumption about how the data was generated.
-We are going to assume that there are latent properties of the world, z, that are the underlying cause of the data x.
+TODO
+<!--
+VAEs assume a structured probabilistic graphical model for how the data was generated.
+We assume that there are latent properties of the world, z, that are the underlying cause of the data x.
 So for example, our latent could specify there is a duck floating on a pond, along with the attributes of the image like lighting and camera angle and zoom. 
 And then by some probabilistic process, these latent variables lead to the image data we see.
-So that is the structure of our simple probabilistic model.
 
-For our purposes, we care about training a network p_{\theta}(x) to model the density p_{\text{data}}(x), so we can sample from it and get new images.
+For our purposes, we care about training a network or networks to model the density p_{\text{data}}(x), so we can sample from it and get new images.
 To train our network, we need a function that we can evaluate and use as our loss to run SGD on.
 Given our graphical model, we start by writing p(x) as:
 
 <img src="https://render.githubusercontent.com/render/math?math=p(x) = \int p(x|z)p(z)dz">
+
+We are going to make the choice to model p(z)
 
 First off, we are going to make the choice to model p(x|z) as a neural network that takes a latent
 vector of size 128, let's say, and outputs the distribution for an image---for binary MNIST let's say
@@ -106,6 +94,7 @@ which they point to the [Helmholtz machine](https://en.wikipedia.org/wiki/Helmho
 Some further questions to consider are:
 - VAE uses the reparameterization trick. What if we used the Likelihood Ratio / REINFORCE trick? Would it work well if combined with the standard?
 - In what cases would we want multi-modal distributions?
+-->
 
 <!--
 You would expect that the z is unimodal if there is only one x that explains it.
@@ -129,20 +118,10 @@ Bada boom bada bing.
 
 The advantage of this would be that you don't need to be differentiable.
 The score function or the sampling process.
--->
 
 ![](../../assets/vae_slide.png)
+-->
 
-Advantages:
-- sample different parts independently
-- sample different parts independently
+## VQ-VAE
 
-## Examples
-- RIG
-- Dreamer
-
-
-
-# VQ-VAE
-
-For VQ-VAE, I should do a more baby version that uses MNIST and maybe goes down to a smaller latent space. like 16x16 or 8x8 or something.
+TODO
