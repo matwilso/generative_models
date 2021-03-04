@@ -18,8 +18,8 @@ Some of them are super naive approaches, and it's just interesting to see how we
 
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard. See usage below.
-None of the performances here should be considered as hard evidence for or against an algorithm,
-as they are not tuned and extra tricks have not been applied.
+The performance of these implementations should not be considered as evidence for or against an algorithm.
+They have not been well tuned in many cases, and extra tricks have not been applied.
 
 **Contents**
 - [Introduction](#introduction)
@@ -120,8 +120,6 @@ python main.py --model=gan
 
 ## [Diffusion Models](gms/diffusion/)
 
-
-#### [(Improved) Denoising Diffusion Probabilistic Model](gms/diffusion/diffusion.py)
 ```
 python main.py --model=diffusion 
 ```
