@@ -1,7 +1,6 @@
 # generative_models
 
 **Implementations of fundamental deep generative models. (currently: Autoregressive models, VAEs, GANs, and Diffusion models)**
->*"It is important to view knowledge as sort of a semantic tree -- make sure you understand the fundamental principles, ie the trunk and big branches, before you get into the leaves/details or there is nothing for them to hang on to"* - Elon
 
 <!--, along with descriptions using simple language.-->
 
@@ -39,7 +38,24 @@ pip install -r requirements.txt
 
 ## Introduction
 
-Generative models are a very important are of machine learning, that is going to be central
+>*"It is important to view knowledge as sort of a semantic tree -- make sure you understand the fundamental principles, ie the trunk and big branches, before you get into the leaves/details or there is nothing for them to hang on to"* - Elon
+
+Unsupervised learning and generative modeling are important areas of machine learning, because
+they allow us to extra many more bits from the environment than is possible with supervised learning and reinforcement learning.
+Unsupervised learning is what is going to allow us to build powerful machine systems that can look at the world and understand it.
+
+There are many specific approaches to unsupervised learning that face different trade-offs.
+It is unclear what the best approach is going to be, so it is wortwhile digging in to the details
+and really understanding the various approaches.
+This repo offers some intuitive explanations, and simple as possible code for demonstrating these
+systems on MNIST digits. For further resources, I would suggest the [Deep Unsupervised Learning Berkeley Course]((https://sites.google.com/view/berkeley-cs294-158-sp20/)) and the [Deep Learning Textbook (chapters 15-20)](https://www.deeplearningbook.org/)
+
+
+<!--
+, so it is important
+to understand the fundamental approaches.
+
+, that is going to be central
 to the future of the field, fundamentally because they allow us to extract more useful bits from the environment.
 And the cliched quote that "What I cannot create, I do not understand".
 
@@ -56,6 +72,7 @@ are just emerging or yet to be discovered.
 We decouple the implementations from complex architectures, when possible.
 The complex arches are important to understand. But also they add complexity to the core ideas.
 And should be treated in some isolation.
+-->
 
 ## [Autoregressive models](gms/autoregs)
 

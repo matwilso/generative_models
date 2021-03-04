@@ -31,7 +31,13 @@ us generate samples by just sampling from a standard Normal.
 ![](../../assets/vae_graphical.png)
 <!--[make a better diagram, with encoder, decoder, prior]-->
 
+
+<a href="https://www.codecogs.com/eqnedit.php?latex=L^{\text{VAE}}_{\text{VLB}}&space;=&space;\underbrace{-log&space;p_\theta(x|z)}_\text{reconstruction}&space;&plus;&space;\underbrace{KL(q_\phi(z|x)&space;||&space;p(z))}_{\sim&space;\text{regularize&space;encoder,&space;make&space;it&space;possible&space;to&space;sample&space;z}}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?L^{\text{VAE}}_{\text{VLB}}&space;=&space;\underbrace{-log&space;p_\theta(x|z)}_\text{reconstruction}&space;&plus;&space;\underbrace{KL(q_\phi(z|x)&space;||&space;p(z))}_{\sim&space;\text{regularize&space;encoder,&space;make&space;it&space;possible&space;to&space;sample&space;z}}" title="L^{\text{VAE}}_{\text{VLB}} = \underbrace{-log p_\theta(x|z)}_\text{reconstruction} + \underbrace{KL(q_\phi(z|x) || p(z))}_{\sim \text{regularize encoder, make it possible to sample z}}" /></a>
+
+
 TODO
+
+
 <!--
 VAEs assume a structured probabilistic graphical model for how the data was generated.
 We assume that there are latent properties of the world, z, that are the underlying cause of the data x.
@@ -124,4 +130,5 @@ The score function or the sampling process.
 
 ## VQ-VAE
 
-TODO
+TODO: explanation. basically vae with discrete latent codes. the encoder and decoder are pretty standard, besides passing through the discretization.
+you have to do some tricks to learn the prior so you can sample from it. usually you use an autoregressive model like pixelcnn which operates on the latent codes as if they were an image.
