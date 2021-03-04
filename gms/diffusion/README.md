@@ -8,10 +8,14 @@ but they offer good flexibility in architectural choices for the denoising modul
 They have recently emerged as an interesting type of generative model, capable of producing
 high-quality samples and log-likelihoods.
 
-
 This implementation is based on [Denoising Diffusion Probabilistic Modeling (2020)](https://arxiv.org/pdf/2006.11239.pdf)
 and [Improved Denoising Diffusion Probabilistic Modeling (2021)](https://arxiv.org/pdf/2102.09672.pdf), which build off
 [Deep Unsupervised Learning using Nonequilibrium Thermodynamics (2015)](https://arxiv.org/pdf/1503.03585.pdf).
+
+
+This is meant to be the simplest to understand implementation. I removed all the options and simplified
+the code. This likely makes it worse for building off. 
+
 
 For more in-depth description, and analogies between diffusion models and other generative models, see below.
 

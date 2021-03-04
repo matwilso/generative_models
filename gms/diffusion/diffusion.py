@@ -3,24 +3,22 @@ from torch import nn
 from torch.optim import Adam
 import gms
 from gms import utils
-from .basicnet import BasicNet, timestep_embedding
-from .unet import UNetModel
+from .simple_unet import SimpleUnet
 from . import gaussian_diffusion as gd
 from .respace import SpacedDiffusion, space_timesteps
 
 class DiffusionModel(utils.GM):
   DC = utils.AttrDict()  # default C
   DC.binarize = 0
-  DC.pad32 = 0
   DC.schedule = 'cosine'
   DC.loss_type = 'mse'
   DC.timesteps = 500
   DC.hidden_size = 128
+  DC.dropout = 0.1
 
   def __init__(self, C):
     super().__init__(C)
-    self.net = UNetModel(1, 64, 2, 3, [4])
-    #self.net = BasicNet(C)
+    self.net = SimpleUnet(C)
     self.diffusion = gd.GaussianDiffusion(C.timesteps)
     self.optimizer = Adam(self.parameters(), lr=C.lr)
     if C.pad32:

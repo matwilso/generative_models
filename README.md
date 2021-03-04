@@ -13,7 +13,7 @@ with explanations and code that are as simple as possible to understand.
 
 Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course.
 Some of these implementations won't scale far beyond MNIST, because they are designed to represent the fundamental ideas very concisely.
-(Most models are expressed within about 100 lines of code, including network architecture definitions.)
+(Most models are expressed within about 100 lines of code, including network architecture definitions---except for diffusion models; those get a bit hairy.)
 Some of them are super naive approaches, and it's just interesting to see how well they do on MNIST.
 
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
