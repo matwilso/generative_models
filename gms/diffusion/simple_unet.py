@@ -6,9 +6,10 @@ import torch.nn.functional as F
 # arch maintains same shape, has resnet skips, and injects the time embedding in many places
 
 """
-This is a shorter and simpler Unet without attention, designed to work on MNIST
+This is a shorter and simpler Unet, designed to work on MNIST.
 
-It performs slightly worse than the one from Ho/Nichol+Dhariwal
+It performs slightly worse than the one from Ho/Nichol+Dhariwal.
+This is likely due to fewer layers and not using attention.
 """
 
 class SimpleUnet(nn.Module):

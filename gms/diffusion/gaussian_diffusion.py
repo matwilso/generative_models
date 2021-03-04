@@ -4,7 +4,7 @@ https://github.com/hojonathanho/diffusion/blob/1e0dceb3b3495bbe19116a5e1b3596cd0
 
 Then it was improved here: https://github.com/openai/improved-diffusion
 
-Then matwilso cut out all options and everything but base features so that the code was as short and simple as possible.
+Then matwilso cut everything but base features and a single choice of settings, so that the code was as short and simple as possible.
 """
 import numpy as np
 import torch as th
@@ -13,6 +13,8 @@ from .losses import normal_kl, discretized_gaussian_log_likelihood, mean_flat
 class GaussianDiffusion:
   """
   Utilities for training and sampling diffusion models.
+
+  This only implements RESCALED_MSE loss and 'linear' beta scheduling.
   """
   def __init__(self, num_timesteps):
     self.num_timesteps = num_timesteps  # steps of diffusion (e.g., 1000 in Ho paper)
