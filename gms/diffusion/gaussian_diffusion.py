@@ -14,7 +14,6 @@ class GaussianDiffusion:
   """
   Utilities for training and sampling diffusion models.
   """
-
   def __init__(self, num_timesteps):
     self.num_timesteps = num_timesteps  # steps of diffusion (e.g., 1000 in Ho paper)
     # initialize betas and calculate alphas for each timestep
@@ -136,8 +135,7 @@ class GaussianDiffusion:
     return {"output": output, "pred_xstart": out["pred_xstart"]}
 
 class Extractable:
-  """ Class to enable extracting values from a 1-D numpy array for a batch of indices. """
-
+  """Class to enable extracting values from a 1-D numpy array for a batch of indices. Wrap your array in this, then it enables easy time indexing."""
   def __init__(self, arr):
     self.arr = arr
 
