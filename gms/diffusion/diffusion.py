@@ -5,7 +5,6 @@ import gms
 from gms import utils
 from .simple_unet import SimpleUnet
 from . import gaussian_diffusion as gd
-from .respace import SpacedDiffusion, space_timesteps
 
 class DiffusionModel(utils.GM):
   DC = utils.AttrDict()  # default C

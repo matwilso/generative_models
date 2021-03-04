@@ -6,14 +6,12 @@
 
 <!--probably ought to add some description of why i think generative models are important to understand-->
 
-Partially these are my notes to understand the algorithms, made public to incentivize myself to be more thorough and make the code clean.
+Partially these are my notes to understand the algorithms, made public to incentivize myself to be thorough and make the code clean.
 Beyond that, my goal is to provide a standardized repository for the important fundamental generative modeling algorithms,
 with explanations and code that are as simple as possible to understand.
 
-Parts of the code are taken from the Berkeley [Deep Unsupervised Learning](https://sites.google.com/view/berkeley-cs294-158-sp20/) Course.
-Some of these implementations won't scale far beyond MNIST, because they are designed to represent the fundamental ideas very concisely.
-(Most models are expressed within about 100 lines of code, including network architecture definitions---except for diffusion models; those get a bit hairy.)
-Some of them are super naive approaches, and it's just interesting to see how well they do on MNIST.
+Some of these implementations likely won't scale beyond MNIST; they are designed to represent the fundamental ideas as concisely as possible.
+(Most models are expressed within about 100 lines of code, including network architecture definitions---except for diffusion models, which get a bit messy.)
 
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard. See usage below.
@@ -48,8 +46,8 @@ There are many specific approaches to unsupervised learning that face different 
 It is unclear what the best approach is going to be, so it is wortwhile digging in to the details
 and really understanding the various approaches.
 This repo offers some intuitive explanations, and simple as possible code for demonstrating these
-systems on MNIST digits. For further resources, I would suggest the [Deep Unsupervised Learning Berkeley Course]((https://sites.google.com/view/berkeley-cs294-158-sp20/)) and the [Deep Learning Textbook (chapters 15-20)](https://www.deeplearningbook.org/)
-
+systems on MNIST digits. For further resources, I would suggest the [Deep Unsupervised Learning Berkeley Course]((https://sites.google.com/view/berkeley-cs294-158-sp20/)) and the [Deep Learning Textbook (chapters 15-20)](https://www.deeplearningbook.org/).
+Parts of the autoregressive code are based on demos from the Berkeley course. 
 
 <!--
 , so it is important
