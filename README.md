@@ -7,7 +7,7 @@
 <!--probably ought to add some description of why i think generative models are important to understand-->
 
 Partially these are my notes to understand the algorithms, made public to incentivize myself to be thorough and make the code clean.
-Beyond that, my goal is to provide a standardized repository for the important fundamental generative modeling algorithms,
+Beyond that, the goal is to provide a standardized repository for the important fundamental generative modeling algorithms,
 with explanations and code that are as simple as possible to understand.
 
 Some of these implementations likely won't scale beyond MNIST; they are designed to represent the fundamental ideas as concisely as possible.

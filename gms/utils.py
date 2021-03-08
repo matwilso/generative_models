@@ -103,7 +103,7 @@ class CategoricalHead(nn.Module):
   def __init__(self, in_n, out_n, C):
     super().__init__()
     self.layer = nn.Linear(in_n, out_n)
-  def forward(self, x, past_o=None):
+  def forward(self, x):
     x = self.layer(x)
     return tdib.Multinomial(logits=x)
 
@@ -112,7 +112,7 @@ class BinaryHead(nn.Module):
   def __init__(self, in_n, out_n, C):
     super().__init__()
     self.layer = nn.Linear(in_n, out_n)
-  def forward(self, x, past_o=None):
+  def forward(self, x):
     x = self.layer(x)
     return tdib.Bernoulli(logits=x)
 
@@ -130,7 +130,6 @@ def combine_imgs(arr, row=5, col=5):
     return x
   else:
     raise NotImplementedError()
-
 
 def append_location(x):
   """add xy coords to every pixel"""
