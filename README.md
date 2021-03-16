@@ -1,6 +1,6 @@
 # generative_models
 
-**Implementations of fundamental deep generative models. (currently: Autoregressive models, VAEs, GANs, and Diffusion models)**
+**Implementations of fundamental deep generative models in PyTorch. (currently: Autoregressive models, VAEs, GANs, and Diffusion models)**
 
 <!--, along with descriptions using simple language.-->
 
@@ -15,8 +15,8 @@ Some of these implementations likely won't scale beyond MNIST; they are designed
 
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard. See usage below.
-The performance of these implementations should not be considered as evidence for or against an algorithm.
-They have not been well tuned in many cases, and extra tricks have not been applied.
+The performance of these implementations should not be considered as evidence for or against an algorithm,
+as they have not been well tuned in many cases, nor have extra tricks been applied.
 
 **Contents**
 - [Introduction](#introduction)
@@ -36,6 +36,8 @@ pip install -r requirements.txt
 
 ## Introduction
 
+>*"What I cannot create I do not understand"* - Feynman
+
 >*"It is important to view knowledge as sort of a semantic tree -- make sure you understand the fundamental principles, ie the trunk and big branches, before you get into the leaves/details or there is nothing for them to hang on to"* - Elon
 
 Unsupervised learning is an important area of machine learning; unsupervised approaches can extract many more bits from the environment than supervised learning and reinforcement learning can,
@@ -51,7 +53,7 @@ systems on MNIST digits. For further resources, I would suggest the [Deep Unsupe
 are based on various repos on the internet, which in turn are based on further upstream sources, and I provide links where relevant.
 The main thing I aim for is concise and easy to understand code, and for standardization across algorithms to the extent possible.
 I think my [VQ-VAE](./gms/vaes/vqvae.py) and [Diffusion models](./gms/diffusion/diffusion.py)
-are especially valuable in their simplicity, compared to most implementations I have seen of them online.)
+are especially valuable in their simplicity, compared to implementations I have seen of them online.)
 
 <!--
 , so it is important
