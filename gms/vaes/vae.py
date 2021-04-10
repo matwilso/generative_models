@@ -43,7 +43,7 @@ class VAE(utils.GM):
     writer.add_image('reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
 
   def _decode(self, x):
-    return 1.0 * (self.decoder(x).exp() > 0.5).cpu()
+    return 1.0 * (th.sigmoid(self.decoder(x)) > 0.5).cpu()
 
 class Encoder(nn.Module):
   def __init__(self, out_size, C):

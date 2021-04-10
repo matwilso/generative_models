@@ -60,11 +60,11 @@ class VQVAE(utils.GM):
     prior_enc = self.vq.idx_to_encoding(prior_idxs)
     prior_enc = prior_enc.reshape([n, 7, 7, -1]).permute(0, 3, 1, 2)
     decoded = self.decoder(prior_enc)
-    return 1.0*(decoded.exp() > 0.5).cpu()
+    return 1.0*(th.sigmoid(decoded) > 0.5).cpu()
 
   def evaluate(self, writer, x, epoch):
     _, decoded, _, _ = self.forward(x[:8])
-    recon = 1.0 * (decoded.exp() > 0.5).cpu()
+    recon = 1.0 * (th.sigmoid(decoded) > 0.5).cpu()
     recon = th.cat([x[:8].cpu(), recon], 0)
     writer.add_image('reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
     samples = self.sample(25)
