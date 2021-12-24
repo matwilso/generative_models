@@ -4,3 +4,4 @@ from .gatedcnn import GatedPixelCNN
 from .pixelcnn import PixelCNN
 from .wavenet import Wavenet
 from .transformer import TransformerCNN
+from .mixer import Mixer

@@ -40,6 +40,7 @@ if __name__ == '__main__':
       'pixelcnn': autoregs.PixelCNN,
       'gatedcnn': autoregs.GatedPixelCNN,
       'transformer': autoregs.TransformerCNN,
+      'mixer': autoregs.Mixer,
       'vae': vaes.VAE,
       'vqvae': vaes.VQVAE,
       'gan': gans.GAN,
