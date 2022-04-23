@@ -45,7 +45,7 @@ if __name__ == '__main__':
       'gan': gans.GAN,
       'diffusion': diffusion.DiffusionModel,
   }[tempC.model]
-  defaults = {'logdir': C.logdir / C.model}
+  defaults = {'logdir': tempC.logdir / tempC.model}
   for key, value in Model.DC.items():
     defaults[key] = value
     if key not in tempC:
@@ -58,6 +58,7 @@ if __name__ == '__main__':
   train_ds, test_ds = utils.load_mnist(C.bs, binarize=C.binarize, pad32=C.pad32)
   num_vars = utils.count_vars(model)
   print('num_vars', num_vars)
+  import ipdb; ipdb.set_trace()
 
   # TRAINING LOOP
   for epoch in count():
