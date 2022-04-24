@@ -1,13 +1,14 @@
+import random
 import torch as th
 from torch import nn
 from torch.optim import Adam
 import gms
-from gms import utils
+from gms import common
 from .simple_unet import SimpleUnet
 from . import gaussian_diffusion as gd
 
-class DiffusionModel(utils.GM):
-  DC = utils.AttrDict()  # default C
+class DiffusionModel(common.GM):
+  DC = common.AttrDict()  # default C
   DC.binarize = 0
   DC.timesteps = 500 # seems to work pretty well for MNIST
   DC.hidden_size = 128
@@ -44,18 +45,22 @@ class DiffusionModel(utils.GM):
       if self.C.pad32:
         x = x[...,2:-2,2:-2]
       return x
-    all_samples = self.diffusion.p_sample( self.net, (25, 1, self.size, self.size))
+
+    th.manual_seed(0)
+    noise = th.randn((25, 1, self.size, self.size), device=x.device)
+    all_samples = self.diffusion.p_sample(self.net, (25, 1, self.size, self.size), noise=noise)
     samples, preds = [], []
     for s in all_samples:
       samples += [proc(s['sample'])]
       preds += [proc(s['pred_xstart'])] 
 
     sample = samples[-1]
-    writer.add_image('samples', utils.combine_imgs(sample, 5, 5)[None], epoch)
+    writer.add_image('samples', common.combine_imgs(sample, 5, 5)[None], epoch)
 
     gs = th.stack(samples)
     gp = th.stack(preds)
-    writer.add_video('sampling_process', utils.combine_imgs(gs.permute(1, 0, 2, 3, 4), 5, 5)[None, :, None], epoch, fps=60)
+    writer.add_video('sampling_process', common.combine_imgs(gs.permute(1, 0, 2, 3, 4), 5, 5)[None, :, None], epoch, fps=60)
     # at any point, we can guess at the true value of x_0 based on our current noise
     # this produces a nice visualization
-    writer.add_video('pred_xstart', utils.combine_imgs(gp.permute(1, 0, 2, 3, 4), 5, 5)[None, :, None], epoch, fps=60)
+    writer.add_video('pred_xstart', common.combine_imgs(gp.permute(1, 0, 2, 3, 4), 5, 5)[None, :, None], epoch, fps=60)
+    th.manual_seed(random.randint(0, 2**32))

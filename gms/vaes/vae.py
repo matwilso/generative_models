@@ -3,10 +3,10 @@ from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
 from torch.optim import Adam
-from gms import utils
+from gms import common
 
-class VAE(utils.GM):
-  DC = utils.AttrDict()  # default C
+class VAE(common.GM):
+  DC = common.AttrDict()  # default C
   DC.z_size = 128
   DC.beta = 1.0
 
@@ -36,11 +36,11 @@ class VAE(utils.GM):
   def evaluate(self, writer, x, epoch):
     """run samples and other evaluations"""
     samples = self.sample(25)
-    writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
+    writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
     z_post = self.encoder(x[:8])
     recon = self._decode(z_post.mean)
     recon = th.cat([x[:8].cpu(), recon], 0)
-    writer.add_image('reconstruction', utils.combine_imgs(recon, 2, 8)[None], epoch)
+    writer.add_image('reconstruction', common.combine_imgs(recon, 2, 8)[None], epoch)
 
   def _decode(self, x):
     return 1.0 * (th.sigmoid(self.decoder(x)) > 0.5).cpu()

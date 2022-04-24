@@ -4,13 +4,13 @@ import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
-from gms import utils
+from gms import common
 
-class Wavenet(utils.Autoreg):
+class Wavenet(common.Autoreg):
   """This is basically just taking the idea of Wavenet and applying it to a 1d-ified MNIST.
   That's pretty much it.
   """
-  DC = utils.AttrDict()
+  DC = common.AttrDict()
   DC.use_resblock = 1
   DC.hidden_size = 320
   def __init__(self, C):
@@ -29,7 +29,7 @@ class Wavenet(utils.Autoreg):
 
   def forward(self, x):
     bs = x.shape[0]
-    x = utils.append_location(x)
+    x = common.append_location(x)
     x = x.reshape(bs, -1, 784)
     x = self.causal(x)
     x = self.stack(x)

@@ -4,10 +4,10 @@ import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
-from gms import utils
+from gms import common
 
-class PixelCNN(utils.Autoreg):
-  DC = utils.AttrDict()
+class PixelCNN(common.Autoreg):
+  DC = common.AttrDict()
   DC.n_filters = 128
   DC.n_layers = 5
   DC.kernel_size = 7

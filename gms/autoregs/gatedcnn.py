@@ -4,12 +4,12 @@ import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
-from gms import utils
+from gms import common
 from gms.autoregs.pixelcnn import PixelCNN, LayerNorm, MaskConv2d
 
 # GatedPixelCNN using horizontal and vertical stacks to fix blind-spot
 class GatedPixelCNN(PixelCNN):
-  DC = utils.AttrDict()
+  DC = common.AttrDict()
   DC.n_filters = 96
   DC.n_layers = 5
   DC.kernel_size = 7

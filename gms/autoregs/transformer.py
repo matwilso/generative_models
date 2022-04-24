@@ -4,12 +4,12 @@ import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
-from gms import utils
+from gms import common
 
 # This transformer code is taken from https://github.com/karpathy/minGPT and then modified.
 
-class TransformerCNN(utils.Autoreg):
-  DC = utils.AttrDict()
+class TransformerCNN(common.Autoreg):
+  DC = common.AttrDict()
   DC.n_layer = 2
   DC.n_head = 4
   DC.n_embed = 128
@@ -25,9 +25,9 @@ class TransformerCNN(utils.Autoreg):
     self.blocks = nn.Sequential(*[Block(self.block_size, C) for _ in range(C.n_layer)])
     self.ln_f = nn.LayerNorm(C.n_embed)
     if head == 'bin':
-      self.dist_head = utils.BinaryHead(C.n_embed, self.in_size, C)
+      self.dist_head = common.BinaryHead(C.n_embed, self.in_size, C)
     elif head == 'cat':
-      self.dist_head = utils.CategoricalHead(C.n_embed, self.in_size, C)
+      self.dist_head = common.CategoricalHead(C.n_embed, self.in_size, C)
     self.optimizer = Adam(self.parameters(), lr=self.C.lr)
 
   def train_step(self, x):
@@ -64,8 +64,8 @@ class TransformerCNN(utils.Autoreg):
     B, HW, C = samples.shape
     gen = th.stack(gen).reshape([HW, B, 1, 28, 28]).permute(1, 0, 2, 3, 4)
     samples = samples.reshape([B, C, 28, 28]).cpu()
-    writer.add_video('sampling_process', utils.combine_imgs(gen, 5, 5)[None,:,None], epoch, fps=60)
-    writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
+    writer.add_video('sampling_process', common.combine_imgs(gen, 5, 5)[None,:,None], epoch, fps=60)
+    writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
 
 
 class CausalSelfAttention(nn.Module):

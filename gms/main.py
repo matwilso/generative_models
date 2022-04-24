@@ -7,12 +7,12 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from itertools import count
 import torch as th
-from gms import utils
+from gms import common
 from gms import autoregs, vaes, gans, diffusion
 
 # TRAINING SCRIPT
 
-C = utils.AttrDict()
+C = common.AttrDict()
 C.model = 'vae'
 C.bs = 64
 C.hidden_size = 256
@@ -30,7 +30,7 @@ if __name__ == '__main__':
   # PARSE CMD LINE
   parser = argparse.ArgumentParser()
   for key, value in C.items():
-    parser.add_argument(f'--{key}', type=utils.args_type(value), default=value)
+    parser.add_argument(f'--{key}', type=common.args_type(value), default=value)
   tempC, _ = parser.parse_known_args()
   # SETUP
   Model = {
@@ -54,11 +54,10 @@ if __name__ == '__main__':
   C = parser.parse_args()
   model = Model(C=C).to(C.device)
   writer = SummaryWriter(C.logdir)
-  logger = utils.dump_logger({}, writer, 0, C)
-  train_ds, test_ds = utils.load_mnist(C.bs, binarize=C.binarize, pad32=C.pad32)
-  num_vars = utils.count_vars(model)
+  logger = common.dump_logger({}, writer, 0, C)
+  train_ds, test_ds = common.load_mnist(C.bs, binarize=C.binarize, pad32=C.pad32)
+  num_vars = common.count_vars(model)
   print('num_vars', num_vars)
-  import ipdb; ipdb.set_trace()
 
   # TRAINING LOOP
   for epoch in count():
@@ -91,7 +90,7 @@ if __name__ == '__main__':
     model.train()
     # LOGGING
     logger['num_vars'] = num_vars
-    logger = utils.dump_logger(logger, writer, epoch, C)
+    logger = common.dump_logger(logger, writer, epoch, C)
     if epoch % C.save_n == 0:
       path = C.logdir / 'model.pt'
       print("SAVED MODEL", path)

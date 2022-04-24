@@ -4,10 +4,10 @@ import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
-from gms import utils
+from gms import common
 
-class RNN(utils.Autoreg):
-  DC = utils.AttrDict()
+class RNN(common.Autoreg):
+  DC = common.AttrDict()
   DC.append_loc = 1
   DC.hidden_size = 1024 # this is big and it makes it train slowly, but it makes it have similar # parameters as other models.
   def __init__(self, C):
@@ -21,7 +21,7 @@ class RNN(utils.Autoreg):
 
   def loss(self, inp):
     bs = inp.shape[0]
-    x = utils.append_location(inp) if self.C.append_loc else inp
+    x = common.append_location(inp) if self.C.append_loc else inp
 
     # make LSTM operate over 1 pixel at a time.
     x = x.permute(0, 2, 3, 1).contiguous().view(bs, self.canvas_size, self.input_channels)

@@ -3,13 +3,13 @@ from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
 from torch.optim import Adam
-from gms import utils
+from gms import common
 
 # Based on DCGAN, but scaled down to 28x28 MNIST
 # mostly taken from https://github.com/pytorch/examples/blob/6c8e2bab4d45f2386929c83bb4480c18d2b660fd/dcgan/main.py
 
-class GAN(utils.GM):
-  DC = utils.AttrDict()  # default C
+class GAN(common.GM):
+  DC = common.AttrDict()  # default C
   DC.noise_size = 128
   DC.binarize = 0 # don't binarize the data for GAN, because it's easier to deal with this way.
   DC.lr = 1e-4
@@ -53,10 +53,10 @@ class GAN(utils.GM):
 
   def evaluate(self, writer, x, epoch):
     samples = self.sample(25)
-    writer.add_image('samples', utils.combine_imgs(samples, 5, 5)[None], epoch)
+    writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
     # fixed noise
     fixed_sample = self.gen(self.fixed_noise)
-    writer.add_image('fixed_noise', utils.combine_imgs(fixed_sample, 5, 5)[None], epoch)
+    writer.add_image('fixed_noise', common.combine_imgs(fixed_sample, 5, 5)[None], epoch)
 
 class Generator(nn.Module):
   def __init__(self, C):

@@ -4,10 +4,10 @@ import torch as th
 from torch import distributions as tdib
 from torch import nn
 import torch.nn.functional as F
-from gms import utils
+from gms import common
 
-class MADE(utils.Autoreg):
-  DC = utils.AttrDict()
+class MADE(common.Autoreg):
+  DC = common.AttrDict()
   DC.hidden_size = 1024
   def __init__(self, C):
     super().__init__(C)
