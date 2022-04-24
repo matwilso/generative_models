@@ -29,6 +29,8 @@ def load_mnist(bs, binarize=True, pad32=False):
   transform = transforms.Compose(tfs)
   train_dset = MNIST('data', transform=transform, train=True, download=True)
   test_dset = MNIST('data', transform=transform, train=False, download=True)
+  # TEMPHACK
+  train_dset = test_dset
 
   train_loader = data.DataLoader(train_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
   test_loader = data.DataLoader(test_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
@@ -74,13 +76,13 @@ class GM(nn.Module):
     #self.name = pathlib.Path(inspect.getfile(self.__class__)).with_suffix('').name
     self.optimizer = None
 
-  def train_step(self, x):
+  def train_step(self, x, y):
     """take one step on a batch to update the network"""
     assert hasattr(self, 'loss'), 'you are using the default train_step. this requires you to define a loss function that returns loss, metrics'
     if self.optimizer is None:
       self.optimizer = Adam(self.parameters(), self.C.lr)
     self.optimizer.zero_grad()
-    loss, metrics = self.loss(x)
+    loss, metrics = self.loss(x, y)
     loss.backward()
     self.optimizer.step()
     return metrics

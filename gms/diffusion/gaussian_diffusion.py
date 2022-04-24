@@ -62,6 +62,13 @@ class GaussianDiffusion:
     # Pass x_t through model and compute eps
     model_out = model(x, t, **model_kwargs)
     eps, model_var = th.split(model_out, x.shape[1], dim=1)
+    if model_kwargs != {}:
+      guide = model_kwargs['guide']
+      guide[:] = -1
+      free_model_out = model(x, t, guide=guide)
+      free_eps, _ = th.split(free_model_out, x.shape[1], dim=1)
+      eps = (1 + 0.5) * eps - 0.5 * free_eps
+
     # Compute variance by interpolating between min and max values (equation 15, improved paper)
     min_log = self.posterior_log_variance_clipped[t]
     max_log = self.log_betas[t]
@@ -127,7 +134,7 @@ class GaussianDiffusion:
     """
     # KL between posterior and learned model to inject info about data (L_{t-1} terms)
     true_mean, _, true_log_variance_clipped = self.q_posterior(x_start=x_start, x_t=x_t, t=t)
-    out = self.p_dist(model, x_t, t, model_kwargs={})
+    out = self.p_dist(model, x_t, t, model_kwargs=model_kwargs)
     kl = normal_kl(true_mean, true_log_variance_clipped, out["mean"], out["log_variance"])
     kl = mean_flat(kl) / np.log(2.0)
     # reconstruction (L_0 term)

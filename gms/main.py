@@ -66,7 +66,7 @@ if __name__ == '__main__':
     for batch in train_ds:
       batch[0], batch[1] = batch[0].to(C.device), batch[1].to(C.device)
       # TODO: see if we can just use loss and write the gan such that it works.
-      metrics = model.train_step(batch[0])
+      metrics = model.train_step(batch[0], batch[1])
       for key in metrics:
         logger[key] += [metrics[key].detach().cpu()]
     logger['dt/train'] = time.time() - train_time
@@ -77,7 +77,7 @@ if __name__ == '__main__':
       if hasattr(model, 'loss'):
         for test_batch in test_ds:
           test_batch[0], test_batch[1] = test_batch[0].to(C.device), test_batch[1].to(C.device)
-          test_loss, test_metrics = model.loss(test_batch[0])
+          test_loss, test_metrics = model.loss(test_batch[0], test_batch[1])
           for key in test_metrics:
             logger['test/' + key] += [test_metrics[key].detach().cpu()]
       else:

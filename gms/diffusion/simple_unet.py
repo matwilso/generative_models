@@ -22,6 +22,11 @@ class SimpleUnet(nn.Module):
         nn.SiLU(),
         nn.Linear(time_embed_dim, time_embed_dim),
     )
+    self.guide_embed = nn.Sequential(
+        nn.Linear(10, time_embed_dim),
+        nn.SiLU(),
+        nn.Linear(time_embed_dim, time_embed_dim),
+    )
     self.down = Down(channels, time_embed_dim, dropout=dropout)
     self.turn = ResBlock(channels, time_embed_dim, dropout=dropout)
     self.up = Up(channels, time_embed_dim, dropout=dropout)
@@ -32,8 +37,16 @@ class SimpleUnet(nn.Module):
     )
     self.C = C
 
-  def forward(self, x, timesteps):
+  def forward(self, x, timesteps, guide=None):
     emb = self.time_embed(timestep_embedding(timesteps.float(), 64, self.C.timesteps))
+    if guide is not None:
+      # if the guide is -1, we gonna zero it out
+      mask = guide == -1
+      guide[mask] = 0
+      guide_emb = self.guide_embed(F.one_hot(guide, num_classes=10).float())
+      guide_emb[mask] = 0.0
+      emb += guide_emb
+
     # <UNET> downsample, then upsample with skip connections between the down and up.
     x, cache = self.down(x, emb)
     x = self.turn(x, emb)

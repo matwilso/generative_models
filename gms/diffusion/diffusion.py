@@ -24,16 +24,18 @@ class DiffusionModel(common.GM):
     else:
       self.size = 28
 
-  def train_step(self, x):
+  def train_step(self, x, y):
     self.optimizer.zero_grad()
-    loss, metrics = self.loss(x)
+    # 10% of the time, drop out the class
+    y[th.rand(y.shape[0]) < 0.1] = -1
+    loss, metrics = self.loss(x, y)
     loss.backward()
     self.optimizer.step()
     return metrics
 
-  def loss(self, x):
+  def loss(self, x, y):
     t = th.randint(0, self.C.timesteps, (x.shape[0],)).to(x.device)
-    metrics = self.diffusion.training_losses(self.net, x, t)
+    metrics = self.diffusion.training_losses(self.net, x, t, model_kwargs={'guide': y})
     metrics = {key: val.mean() for key, val in metrics.items()}
     loss = metrics['loss']
     return loss, metrics
@@ -48,7 +50,8 @@ class DiffusionModel(common.GM):
 
     th.manual_seed(0)
     noise = th.randn((25, 1, self.size, self.size), device=x.device)
-    all_samples = self.diffusion.p_sample(self.net, (25, 1, self.size, self.size), noise=noise)
+    labels = th.arange(25, dtype=th.long, device=x.device) % 10
+    all_samples = self.diffusion.p_sample(self.net, (25, 1, self.size, self.size), noise=noise, model_kwargs={'guide': labels})
     samples, preds = [], []
     for s in all_samples:
       samples += [proc(s['sample'])]
