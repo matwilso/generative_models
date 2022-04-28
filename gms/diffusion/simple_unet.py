@@ -41,6 +41,7 @@ class SimpleUnet(nn.Module):
     emb = self.time_embed(timestep_embedding(timesteps.float(), 64, self.C.timesteps))
     if guide is not None:
       # if the guide is -1, we gonna zero it out
+      guide = guide.clone()
       mask = guide == -1
       guide[mask] = 0
       guide_emb = self.guide_embed(F.one_hot(guide, num_classes=10).float())

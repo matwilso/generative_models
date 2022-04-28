@@ -63,7 +63,7 @@ class GaussianDiffusion:
     model_out = model(x, t, **model_kwargs)
     eps, model_var = th.split(model_out, x.shape[1], dim=1)
     if model_kwargs != {}:
-      guide = model_kwargs['guide']
+      guide = model_kwargs['guide'].clone()
       guide[:] = -1
       free_model_out = model(x, t, guide=guide)
       free_eps, _ = th.split(free_model_out, x.shape[1], dim=1)
