@@ -13,6 +13,20 @@ import numpy as np
 import yaml
 from torch import distributions as tdib
 
+def evaluate_samples(writer, samples, epoch, y=None, arbiter=None, classifier=None):
+  if classifier is not None:
+    import ipdb; ipdb.set_trace()
+    imgs = samples[:8]
+    probs = (28*th.softmax(classifier(imgs.cuda()), dim=-1)).round().cpu().numpy()
+    bars = np.zeros([8, 1, 28, 28])
+    for i in range(8):
+      for j in range(10):
+        bars[i, j*3:(j+1)*3, :probs] = 1
+    out = np.concatenate([bars, probs], 0)
+    writer.add_image('out', combine_imgs(out, 2, 8)[None], epoch)
+  if arbiter is not None:
+    import ipdb; ipdb.set_trace()
+
 def load_mnist(bs, binarize=True, pad32=False):
   from torchvision import transforms
   from torchvision.datasets import MNIST
@@ -29,8 +43,6 @@ def load_mnist(bs, binarize=True, pad32=False):
   transform = transforms.Compose(tfs)
   train_dset = MNIST('data', transform=transform, train=True, download=True)
   test_dset = MNIST('data', transform=transform, train=False, download=True)
-  # TEMPHACK
-  train_dset = test_dset
 
   train_loader = data.DataLoader(train_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
   test_loader = data.DataLoader(test_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
@@ -87,11 +99,12 @@ class GM(nn.Module):
     self.optimizer.step()
     return metrics
 
-  def evaluate(self, writer, x, epoch):
-    assert False, "you need to implement the evaluate method. make some samples or something."
+  def evaluate(self, writer, x, y, epoch, arbiter=None, classifier=None):
+    # you need to implement the evaluate method. make some samples or something
+    raise NotImplementedError
 
 class Autoreg(GM):
-  def evaluate(self, writer, x, epoch):
+  def evaluate(self, writer, x, y, epoch, arbiter=None, classifier=None):
     samples, gen = self.sample(25)
     B, C, H, W = samples.shape
     samples = samples.reshape([B, C, H, W])

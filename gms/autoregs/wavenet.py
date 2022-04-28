@@ -37,7 +37,7 @@ class Wavenet(common.Autoreg):
     dist = tdib.Bernoulli(logits=x.reshape(bs, 1, 28, 28))
     return dist
 
-  def loss(self, x):
+  def loss(self, x, y=None):
     dist = self.forward(x)
     loss = -dist.log_prob(x).mean()
     return loss, {'nlogp': loss}

@@ -59,7 +59,7 @@ class TransformerCNN(common.Autoreg):
       steps += [batch.cpu()]
     return batch, steps
 
-  def evaluate(self, writer, x, epoch):
+  def evaluate(self, writer, x, y, epoch, arbiter=None, classifier=None):
     samples, gen = self.sample(25)
     B, HW, C = samples.shape
     gen = th.stack(gen).reshape([HW, B, 1, 28, 28]).permute(1, 0, 2, 3, 4)

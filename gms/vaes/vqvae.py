@@ -62,7 +62,7 @@ class VQVAE(common.GM):
     decoded = self.decoder(prior_enc)
     return 1.0*(th.sigmoid(decoded) > 0.5).cpu()
 
-  def evaluate(self, writer, x, epoch):
+  def evaluate(self, writer, x, y, epoch, arbiter=None, classifier=None):
     _, decoded, _, _ = self.forward(x[:8])
     recon = 1.0 * (th.sigmoid(decoded) > 0.5).cpu()
     recon = th.cat([x[:8].cpu(), recon], 0)

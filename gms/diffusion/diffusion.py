@@ -40,7 +40,7 @@ class DiffusionModel(common.GM):
     loss = metrics['loss']
     return loss, metrics
 
-  def evaluate(self, writer, x, epoch):
+  def evaluate(self, writer, x, y, epoch, arbiter=None, classifier=None):
     # draw samples and visualize the sampling process
     def proc(x):
       x = ((x + 1) * 127.5).clamp(0, 255).to(th.uint8).cpu()
@@ -67,3 +67,4 @@ class DiffusionModel(common.GM):
     # this produces a nice visualization
     writer.add_video('pred_xstart', common.combine_imgs(gp.permute(1, 0, 2, 3, 4), 5, 5)[None, :, None], epoch, fps=60)
     th.manual_seed(random.randint(0, 2**32))
+    common.evaluate_samples(writer, samples, epoch, arbiter=arbiter, classifier=classifier)

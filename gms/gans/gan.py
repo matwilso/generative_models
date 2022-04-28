@@ -51,7 +51,7 @@ class GAN(common.GM):
     fake = self.gen(th.randn(n, self.C.noise_size).to(self.C.device))
     return fake
 
-  def evaluate(self, writer, x, epoch):
+  def evaluate(self, writer, x, y, epoch, arbiter=None, classifier=None):
     samples = self.sample(25)
     writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
     # fixed noise

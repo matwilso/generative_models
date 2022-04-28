@@ -1,3 +1,4 @@
+from turtle import forward
 import torch as th
 from torch import distributions as tdib
 from torch import nn
@@ -5,10 +6,9 @@ import torch.nn.functional as F
 from torch.optim import Adam
 from gms import common
 
-class VAE(common.GM):
+class Autoencoder(common.GM):
   DC = common.AttrDict()  # default C
   DC.z_size = 128
-  DC.beta = 1.0
 
   def __init__(self, C):
     super().__init__(C)
@@ -16,32 +16,23 @@ class VAE(common.GM):
     self.decoder = Decoder(C.z_size, C)
     self.optimizer = Adam(self.parameters(), lr=C.lr)
 
-  def loss(self, x, y=None):
-    """VAE loss"""
-    z_post = self.encoder(x)  # posterior  p(z|x)
-    decoded = self.decoder(z_post.rsample())  # reconstruction p(x|z)
-    recon_loss = -tdib.Bernoulli(logits=decoded).log_prob(x).mean((1, 2, 3))
-    # kl div constraint
-    z_prior = tdib.Normal(0, 1)
-    kl_loss = tdib.kl_divergence(z_post, z_prior).mean(-1)
-    # full loss and metrics
-    loss = (recon_loss + self.C.beta * kl_loss).mean()
-    metrics = {'vae_loss': loss, 'recon_loss': recon_loss.mean(), 'kl_loss': kl_loss.mean()}
-    return loss, metrics
+  def forward(self, x):
+    return self.encoder(x)
 
-  def sample(self, n):
-    z = th.randn(n, self.C.z_size).to(self.C.device)
-    return self._decode(z)
+  def loss(self, x, y=None):
+    z = self.encoder(x)
+    decoded = self.decoder(z)
+    recon_loss = -tdib.Bernoulli(logits=decoded).log_prob(x).mean((1, 2, 3))
+    loss = (recon_loss).mean()
+    metrics = {'vae_loss': loss, 'recon_loss': recon_loss.mean()}
+    return loss, metrics
 
   def evaluate(self, writer, x, y, epoch, arbiter=None, classifier=None):
     """run samples and other evaluations"""
-    samples = self.sample(25)
-    writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
-    z_post = self.encoder(x[:8])
-    recon = self._decode(z_post.mean)
+    z = self.encoder(x[:8])
+    recon = self._decode(z)
     recon = th.cat([x[:8].cpu(), recon], 0)
     writer.add_image('reconstruction', common.combine_imgs(recon, 2, 8)[None], epoch)
-    common.evaluate_samples(writer, samples, epoch, arbiter=arbiter, classifier=classifier)
 
   def _decode(self, x):
     return 1.0 * (th.sigmoid(self.decoder(x)) > 0.5).cpu()
@@ -57,17 +48,12 @@ class Encoder(nn.Module):
         nn.ReLU(),
         nn.Conv2d(H, H, 3, 1),
         nn.ReLU(),
-        nn.Conv2d(H, 2 * out_size, 3, 2),
+        nn.Conv2d(H, out_size, 3, 2),
         nn.Flatten(1, 3),
     )
 
-  def get_dist(self, x):
-    mu, log_std = x.chunk(2, -1)
-    std = F.softplus(log_std) + 1e-4
-    return tdib.Normal(mu, std)
-
   def forward(self, x):
-    return self.get_dist(self.net(x))
+    return self.net(x)
 
 class Decoder(nn.Module):
   def __init__(self, in_size, C):

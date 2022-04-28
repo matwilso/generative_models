@@ -19,7 +19,7 @@ class RNN(common.Autoreg):
     self.lstm = nn.LSTM(self.input_channels, self.C.hidden_size, num_layers=1, batch_first=True)
     self.fc = nn.Linear(self.C.hidden_size, input_shape[0])
 
-  def loss(self, inp):
+  def loss(self, inp, y=None):
     bs = inp.shape[0]
     x = common.append_location(inp) if self.C.append_loc else inp
 
