@@ -9,28 +9,28 @@ from gms.autoregs.transformer import TransformerCNN
 
 
 class VQVAE(common.GM):
-    DC = common.AttrDict()  # default C
-    DC.vqD = 64
-    DC.vqK = 64
-    DC.beta = 0.25
-    DC.n_layer = 2
-    DC.n_head = 8
-    DC.n_embed = 256
-    DC.prior_lr = 1e-3
+    DG = common.AttrDict()  # default C
+    DG.vqD = 64
+    DG.vqK = 64
+    DG.beta = 0.25
+    DG.n_layer = 2
+    DG.n_head = 8
+    DG.n_embed = 256
+    DG.prior_lr = 1e-3
 
-    def __init__(self, C):
-        super().__init__(C)
+    def __init__(self, G):
+        super().__init__(G)
         # encoder -> VQ -> decoder
-        self.encoder = Encoder(C)
-        self.vq = VectorQuantizer(C.vqK, C.vqD, C.beta, C)
-        self.decoder = Decoder(C)
+        self.encoder = Encoder(G)
+        self.vq = VectorQuantizer(G.vqK, G.vqD, G.beta, G)
+        self.decoder = Decoder(G)
         # prior. this is usually learned after the other stuff has been trained, but we do it all in one swoop.
         self.transformerCNN = TransformerCNN(
-            in_size=C.vqK, block_size=7 * 7, head='cat', C=C
+            in_size=G.vqK, block_size=7 * 7, head='cat', G=G
         )
-        self.optimizer = Adam(self.parameters(), lr=C.lr)
+        self.optimizer = Adam(self.parameters(), lr=G.lr)
         self.prior_optimizer = Adam(
-            self.transformerCNN.parameters(), lr=C.prior_lr, betas=(0.5, 0.999)
+            self.transformerCNN.parameters(), lr=G.prior_lr, betas=(0.5, 0.999)
         )
 
     def train_step(self, x):
@@ -43,7 +43,7 @@ class VQVAE(common.GM):
         self.optimizer.step()
         # PRIOR
         self.zero_grad()
-        code_idxs = F.one_hot(idxs.detach(), self.C.vqK).float().flatten(1, 2)
+        code_idxs = F.one_hot(idxs.detach(), self.G.vqK).float().flatten(1, 2)
         dist = self.transformerCNN.forward(code_idxs)
         prior_loss = -dist.log_prob(code_idxs).mean()
         prior_loss.backward()
@@ -81,9 +81,9 @@ class VQVAE(common.GM):
 
 
 class Encoder(nn.Module):
-    def __init__(self, C):
+    def __init__(self, G):
         super().__init__()
-        H = C.hidden_size
+        H = G.hidden_size
         self.net = nn.Sequential(
             nn.Conv2d(1, H, 3, 2, padding=1),
             nn.ReLU(),
@@ -91,7 +91,7 @@ class Encoder(nn.Module):
             nn.ReLU(),
             nn.Conv2d(H, H, 3, 1, padding=1),
             nn.ReLU(),
-            nn.Conv2d(H, C.vqD, 3, 1, padding=1),
+            nn.Conv2d(H, G.vqD, 3, 1, padding=1),
             nn.ReLU(),
         )
 
@@ -100,11 +100,11 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, C):
+    def __init__(self, G):
         super().__init__()
-        H = C.hidden_size
+        H = G.hidden_size
         self.net = nn.Sequential(
-            nn.ConvTranspose2d(C.vqD, H, 6, 3),
+            nn.ConvTranspose2d(G.vqD, H, 6, 3),
             nn.ReLU(),
             nn.ConvTranspose2d(H, H, 3, 1),
             nn.ReLU(),
@@ -120,7 +120,7 @@ class Decoder(nn.Module):
 class VectorQuantizer(nn.Module):
     """from: https://github.com/MishaLaskin/vqvae"""
 
-    def __init__(self, K, D, beta, C):
+    def __init__(self, K, D, beta, G):
         super().__init__()
         self.K = K
         self.D = D

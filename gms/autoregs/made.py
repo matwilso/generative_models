@@ -8,14 +8,14 @@ from gms import common
 
 
 class MADE(common.Autoreg):
-    DC = common.AttrDict()
-    DC.hidden_size = 1024
+    DG = common.AttrDict()
+    DG.hidden_size = 1024
 
-    def __init__(self, C):
-        super().__init__(C)
+    def __init__(self, G):
+        super().__init__(G)
         self.nin = 784
         self.nout = 784
-        self.hidden_sizes = [C.hidden_size] * 3
+        self.hidden_sizes = [G.hidden_size] * 3
 
         # define a simple MLP neural net
         net = []
@@ -56,14 +56,14 @@ class MADE(common.Autoreg):
             l.set_mask(m)
 
     def loss(self, x):
-        x = x.to(self.C.device)
+        x = x.to(self.G.device)
         x = x.view(-1, 784)  # Flatten image
         logits = self.net(x)
         loss = -tdib.Bernoulli(logits=logits).log_prob(x).mean()
         return loss, {'nlogp': loss}
 
     def sample(self, n):
-        samples = torch.zeros(n, 784).to(self.C.device)
+        samples = torch.zeros(n, 784).to(self.G.device)
         # set the pixels 1 by 1 in raster order.
         # choose pixel 0, then based on that choose pixel 1, then based on both of those choose pixel 2. etc and so on.
         # This works ok, because it is used to this version of information propagation.

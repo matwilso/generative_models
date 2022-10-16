@@ -9,25 +9,25 @@ from gms import common
 
 
 class GAN(common.GM):
-    DC = common.AttrDict()  # default C
-    DC.noise_size = 128
-    DC.binarize = (
+    DG = common.AttrDict()  # default C
+    DG.noise_size = 128
+    DG.binarize = (
         0  # don't binarize the data for GAN, because it's easier to deal with this way.
     )
-    DC.lr = 1e-4
+    DG.lr = 1e-4
 
-    def __init__(self, C):
-        super().__init__(C)
-        self.disc = Discriminator(C)
-        self.gen = Generator(C)
-        self.disc_optim = Adam(self.disc.parameters(), lr=C.lr, betas=(0.5, 0.999))
-        self.gen_optim = Adam(self.gen.parameters(), lr=C.lr, betas=(0.5, 0.999))
+    def __init__(self, G):
+        super().__init__(G)
+        self.disc = Discriminator(G)
+        self.gen = Generator(G)
+        self.disc_optim = Adam(self.disc.parameters(), lr=G.lr, betas=(0.5, 0.999))
+        self.gen_optim = Adam(self.gen.parameters(), lr=G.lr, betas=(0.5, 0.999))
         self.bce = nn.BCELoss()
-        self.fixed_noise = torch.randn(25, C.noise_size).to(C.device)
+        self.fixed_noise = torch.randn(25, G.noise_size).to(G.device)
 
     def train_step(self, x):
         bs = x.shape[0]
-        noise = torch.randn(bs, self.C.noise_size).to(self.C.device)
+        noise = torch.randn(bs, self.G.noise_size).to(self.G.device)
         # DISCRIMINATOR TRAINING - distinguish between real images and generator images
         self.disc_optim.zero_grad()
         # label real as 1 and learn to predict that
@@ -55,7 +55,7 @@ class GAN(common.GM):
         return metrics
 
     def sample(self, n):
-        fake = self.gen(torch.randn(n, self.C.noise_size).to(self.C.device))
+        fake = self.gen(torch.randn(n, self.G.noise_size).to(self.G.device))
         return fake
 
     def evaluate(self, writer, x, epoch):
@@ -69,11 +69,11 @@ class GAN(common.GM):
 
 
 class Generator(nn.Module):
-    def __init__(self, C):
+    def __init__(self, G):
         super().__init__()
-        H = C.hidden_size
+        H = G.hidden_size
         self.net = nn.Sequential(
-            nn.ConvTranspose2d(C.noise_size, H, 5, 1),
+            nn.ConvTranspose2d(G.noise_size, H, 5, 1),
             nn.BatchNorm2d(H),
             nn.ReLU(),
             nn.ConvTranspose2d(H, H, 4, 2),
@@ -93,9 +93,9 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, C):
+    def __init__(self, G):
         super().__init__()
-        H = C.hidden_size
+        H = G.hidden_size
         self.net = nn.Sequential(
             nn.Conv2d(1, H, 3, 2),
             nn.LeakyReLU(),

@@ -8,25 +8,25 @@ from gms.autoregs.pixelcnn import LayerNorm, MaskConv2d, PixelCNN
 
 # GatedPixelCNN using horizontal and vertical stacks to fix blind-spot
 class GatedPixelCNN(PixelCNN):
-    DC = common.AttrDict()
-    DC.n_filters = 96
-    DC.n_layers = 5
-    DC.kernel_size = 7
-    DC.use_resblock = 0
+    DG = common.AttrDict()
+    DG.n_filters = 96
+    DG.n_layers = 5
+    DG.kernel_size = 7
+    DG.use_resblock = 0
 
-    def __init__(self, C):
-        super().__init__(C)
+    def __init__(self, G):
+        super().__init__(G)
         input_shape = (1, 28, 28)
         self.n_channels = input_shape[0]
         self.input_shape = input_shape
-        self.in_conv = MaskConv2d('A', self.n_channels, C.n_filters, 7, padding=3)
+        self.in_conv = MaskConv2d('A', self.n_channels, G.n_filters, 7, padding=3)
         model = []
-        for _ in range(C.n_layers - 2):
+        for _ in range(G.n_layers - 2):
             model.extend(
-                [nn.ReLU(), GatedConv2d('B', C.n_filters, C.n_filters, 7, padding=3)]
+                [nn.ReLU(), GatedConv2d('B', G.n_filters, G.n_filters, 7, padding=3)]
             )
-            model.append(StackLayerNorm(C.n_filters))
-        self.out_conv = MaskConv2d('B', C.n_filters, self.n_channels, 7, padding=3)
+            model.append(StackLayerNorm(G.n_filters))
+        self.out_conv = MaskConv2d('B', G.n_filters, self.n_channels, 7, padding=3)
         self.net = nn.Sequential(*model)
 
     def forward(self, x):

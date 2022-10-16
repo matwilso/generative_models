@@ -15,10 +15,10 @@ This is likely due to fewer layers and not using attention.
 
 
 class SimpleUnet(nn.Module):
-    def __init__(self, C):
+    def __init__(self, G):
         super().__init__()
-        channels = C.hidden_size
-        dropout = C.dropout
+        channels = G.hidden_size
+        dropout = G.dropout
         time_embed_dim = 2 * channels
         self.time_embed = nn.Sequential(
             nn.Linear(64, time_embed_dim),
@@ -33,11 +33,10 @@ class SimpleUnet(nn.Module):
             nn.SiLU(),
             nn.Conv2d(channels, 2, 3, padding=1),
         )
-        self.C = C
 
     def forward(self, x, timesteps):
         emb = self.time_embed(
-            timestep_embedding(timesteps.float(), 64, self.C.timesteps)
+            timestep_embedding(timesteps.float(), 64, self.G.timesteps)
         )
         # <UNET> downsample, then upsample with skip connections between the down and up.
         x, cache = self.down(x, emb)

@@ -8,15 +8,15 @@ from gms import common
 
 
 class VAE(common.GM):
-    DC = common.AttrDict()  # default C
-    DC.z_size = 128
-    DC.beta = 1.0
+    DG = common.AttrDict()  # default C
+    DG.z_size = 128
+    DG.beta = 1.0
 
-    def __init__(self, C):
-        super().__init__(C)
-        self.encoder = Encoder(C.z_size, C)
-        self.decoder = Decoder(C.z_size, C)
-        self.optimizer = Adam(self.parameters(), lr=C.lr)
+    def __init__(self, G):
+        super().__init__(G)
+        self.encoder = Encoder(G.z_size, G)
+        self.decoder = Decoder(G.z_size, G)
+        self.optimizer = Adam(self.parameters(), lr=G.lr)
 
     def loss(self, x):
         """VAE loss"""
@@ -27,7 +27,7 @@ class VAE(common.GM):
         z_prior = tdib.Normal(0, 1)
         kl_loss = tdib.kl_divergence(z_post, z_prior).mean(-1)
         # full loss and metrics
-        loss = (recon_loss + self.C.beta * kl_loss).mean()
+        loss = (recon_loss + self.G.beta * kl_loss).mean()
         metrics = {
             'vae_loss': loss,
             'recon_loss': recon_loss.mean(),
@@ -36,7 +36,7 @@ class VAE(common.GM):
         return loss, metrics
 
     def sample(self, n):
-        z = torch.randn(n, self.C.z_size).to(self.C.device)
+        z = torch.randn(n, self.G.z_size).to(self.G.device)
         return self._decode(z)
 
     def evaluate(self, writer, x, epoch):
@@ -55,9 +55,9 @@ class VAE(common.GM):
 
 
 class Encoder(nn.Module):
-    def __init__(self, out_size, C):
+    def __init__(self, out_size, G):
         super().__init__()
-        H = C.hidden_size
+        H = G.hidden_size
         self.net = nn.Sequential(
             nn.Conv2d(1, H, 3, 2),
             nn.ReLU(),
@@ -79,9 +79,9 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, in_size, C):
+    def __init__(self, in_size, G):
         super().__init__()
-        H = C.hidden_size
+        H = G.hidden_size
         self.net = nn.Sequential(
             nn.ConvTranspose2d(in_size, H, 5, 1),
             nn.ReLU(),

@@ -12,18 +12,18 @@ class Wavenet(common.Autoreg):
     That's pretty much it.
     """
 
-    DC = common.AttrDict()
-    DC.use_resblock = 1
-    DC.hidden_size = 320
+    DG = common.AttrDict()
+    DG.use_resblock = 1
+    DG.hidden_size = 320
 
-    def __init__(self, C):
-        super().__init__(C)
+    def __init__(self, G):
+        super().__init__(G)
         in_channels = 3  # pixel + xy location
         out_channels = 1  # pixel
-        res_channels = C.hidden_size
+        res_channels = G.hidden_size
         layer_size = 9  # Largest dilation is 512 (2**9)
         self.causal = DilatedCausalConv1d('A', in_channels, res_channels, dilation=1)
-        if C.use_resblock:
+        if G.use_resblock:
             self.stack = nn.Sequential(
                 *[ResidualBlock(res_channels, 2**i) for i in range(layer_size)]
             )
@@ -35,7 +35,7 @@ class Wavenet(common.Autoreg):
                 ]
             )
         self.out_conv = nn.Conv1d(res_channels, out_channels, 1)
-        self.optimizer = Adam(self.parameters(), lr=C.lr)
+        self.optimizer = Adam(self.parameters(), lr=G.lr)
 
     def forward(self, x):
         bs = x.shape[0]
@@ -54,7 +54,7 @@ class Wavenet(common.Autoreg):
 
     def sample(self, n):
         steps = []
-        batch = torch.zeros(n, 1, 28, 28).to(self.C.device)
+        batch = torch.zeros(n, 1, 28, 28).to(self.G.device)
         for r in range(28):
             for c in range(28):
                 dist = self.forward(batch)
