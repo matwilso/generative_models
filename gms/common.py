@@ -15,17 +15,24 @@ from torch import distributions as tdib
 
 def evaluate_samples(writer, samples, epoch, y=None, arbiter=None, classifier=None):
   if classifier is not None:
-    import ipdb; ipdb.set_trace()
+    preds = classifier(samples.cuda())
+    if y is not None:
+      score = F.cross_entropy(preds, y)
+      writer.add_scalar('sample_cross_entropy', score, epoch)
+
     imgs = samples[:8]
-    probs = (28*th.softmax(classifier(imgs.cuda()), dim=-1)).round().cpu().numpy()
-    bars = np.zeros([8, 1, 28, 28])
+    probs = (28*th.softmax(preds[:8], dim=-1)).round().cpu().long()
+    bars = th.zeros([8, 1, 28, 28])
     for i in range(8):
       for j in range(10):
-        bars[i, j*3:(j+1)*3, :probs] = 1
-    out = np.concatenate([bars, probs], 0)
+        bars[i, :, :probs[i,j], j*3:(j+1)*3] = 1
+        #bars[i,  :, :, [0,-1]] = 0.5
+        #bars[i, :, :, (j+1)*3-1:(j+1)*3] = 0.5
+    out = th.cat([imgs.cpu(), bars.cpu()], 0)
     writer.add_image('out', combine_imgs(out, 2, 8)[None], epoch)
-  if arbiter is not None:
-    import ipdb; ipdb.set_trace()
+
+  #if arbiter is not None:
+  #  import ipdb; ipdb.set_trace()
 
 def load_mnist(bs, binarize=True, pad32=False):
   from torchvision import transforms
@@ -43,6 +50,7 @@ def load_mnist(bs, binarize=True, pad32=False):
   transform = transforms.Compose(tfs)
   train_dset = MNIST('data', transform=transform, train=True, download=True)
   test_dset = MNIST('data', transform=transform, train=False, download=True)
+  train_dset = test_dset
 
   train_loader = data.DataLoader(train_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)
   test_loader = data.DataLoader(test_dset, batch_size=bs, shuffle=True, pin_memory=True, num_workers=2, drop_last=True)

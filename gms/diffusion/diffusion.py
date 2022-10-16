@@ -52,6 +52,7 @@ class DiffusionModel(common.GM):
     noise = th.randn((25, 1, self.size, self.size), device=x.device)
     labels = th.arange(25, dtype=th.long, device=x.device) % 10
     all_samples = self.diffusion.p_sample(self.net, (25, 1, self.size, self.size), noise=noise, model_kwargs={'guide': labels})
+    raw_samples = all_samples[-1]['sample']
     samples, preds = [], []
     for s in all_samples:
       samples += [proc(s['sample'])]
@@ -67,4 +68,5 @@ class DiffusionModel(common.GM):
     # this produces a nice visualization
     writer.add_video('pred_xstart', common.combine_imgs(gp.permute(1, 0, 2, 3, 4), 5, 5)[None, :, None], epoch, fps=60)
     th.manual_seed(random.randint(0, 2**32))
-    common.evaluate_samples(writer, samples, epoch, arbiter=arbiter, classifier=classifier)
+
+    common.evaluate_samples(writer, (raw_samples + 1)/2, epoch, y=labels, arbiter=arbiter, classifier=classifier)
