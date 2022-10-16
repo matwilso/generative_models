@@ -19,12 +19,22 @@ The performance of these implementations should not be considered as evidence fo
 as they have not been well tuned in many cases, nor have extra tricks been applied.
 
 **Contents**
-- [Introduction](#introduction)
-- [Autoregressive models](#autoregressive-models)
-- [Variational Autoencoders (VAEs)](#variational-autoencoders-vaes)
-- [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
-- [Diffusion Models](#diffusion-models)
-- [Future](#future)
+- [generative_models](#generative_models)
+  - [Introduction](#introduction)
+  - [Autoregressive models](#autoregressive-models)
+      - [RNN/LSTM](#rnnlstm)
+      - [MADE](#made)
+      - [Wavenet](#wavenet)
+      - [PixelCNN (original)](#pixelcnn-original)
+      - [GatedPixelCNN (improved mask version)](#gatedpixelcnn-improved-mask-version)
+      - [TransformerCNN](#transformercnn)
+  - [Variational Autoencoders (VAEs)](#variational-autoencoders-vaes)
+      - [VAE (vanilla)](#vae-vanilla)
+      - [VQ-VAE](#vq-vae)
+  - [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
+      - [GAN (vanilla/scaled down DCGAN)](#gan-vanillascaled-down-dcgan)
+  - [Diffusion Models](#diffusion-models)
+  - [Future](#future)
 
 **Install**
 ```

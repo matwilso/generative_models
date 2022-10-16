@@ -1,6 +1,6 @@
 numpy
 torch
-torchvision
+  torchvision
 tensorboard
 matplotlib
 pyyaml
