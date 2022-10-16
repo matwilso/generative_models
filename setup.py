@@ -3,10 +3,8 @@
 
 import io
 import os
-import sys
-from shutil import rmtree
 
-from setuptools import find_packages, setup, Command
+from setuptools import find_packages, setup
 
 # Package meta-data.
 NAME = 'gms'
@@ -64,7 +62,6 @@ setup(
     packages=find_packages(exclude=('tests',)),
     # If your package is a single module, use this instead of 'packages':
     # py_modules=['mypackage'],
-
     # entry_points={
     #     'console_scripts': ['mycli=mymodule:cli'],
     # },
@@ -80,6 +77,6 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy'
+        'Programming Language :: Python :: Implementation :: PyPy',
     ],
 )
