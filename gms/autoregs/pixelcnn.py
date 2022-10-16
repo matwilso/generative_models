@@ -7,33 +7,33 @@ from gms import common
 
 
 class PixelCNN(common.Autoreg):
-    DC = common.AttrDict()
-    DC.n_filters = 128
-    DC.n_layers = 5
-    DC.kernel_size = 7
-    DC.use_resblock = 0
-    DC.lr = 1e-4
+    DG = common.AttrDict()
+    DG.n_filters = 128
+    DG.n_layers = 5
+    DG.kernel_size = 7
+    DG.use_resblock = 0
+    DG.lr = 1e-4
 
-    def __init__(self, C):
-        super().__init__(C)
-        assert C.n_layers >= 2
+    def __init__(self, G):
+        super().__init__(G)
+        assert G.n_layers >= 2
         input_shape = [1, 28, 28]
         n_channels = input_shape[0]
 
-        if C.use_resblock:
+        if G.use_resblock:
 
             def block_init():
-                return ResBlock(C.n_filters)
+                return ResBlock(G.n_filters)
 
         else:
 
             def block_init():
                 return MaskConv2d(
                     'B',
-                    C.n_filters,
-                    C.n_filters,
-                    kernel_size=C.kernel_size,
-                    padding=C.kernel_size // 2,
+                    G.n_filters,
+                    G.n_filters,
+                    kernel_size=G.kernel_size,
+                    padding=G.kernel_size // 2,
                 )
 
         model = nn.ModuleList(
@@ -41,17 +41,17 @@ class PixelCNN(common.Autoreg):
                 MaskConv2d(
                     'A',
                     n_channels,
-                    C.n_filters,
-                    kernel_size=C.kernel_size,
-                    padding=C.kernel_size // 2,
+                    G.n_filters,
+                    kernel_size=G.kernel_size,
+                    padding=G.kernel_size // 2,
                 )
             ]
         )
-        for _ in range(C.n_layers):
-            model.append(LayerNorm(C.n_filters))
+        for _ in range(G.n_layers):
+            model.append(LayerNorm(G.n_filters))
             model.extend([nn.ReLU(), block_init()])
-        model.extend([nn.ReLU(), MaskConv2d('B', C.n_filters, C.n_filters, 1)])
-        model.extend([nn.ReLU(), MaskConv2d('B', C.n_filters, n_channels, 1)])
+        model.extend([nn.ReLU(), MaskConv2d('B', G.n_filters, G.n_filters, 1)])
+        model.extend([nn.ReLU(), MaskConv2d('B', G.n_filters, n_channels, 1)])
         self.net = model
         self.input_shape = input_shape
         self.n_channels = n_channels
@@ -72,7 +72,7 @@ class PixelCNN(common.Autoreg):
 
     def sample(self, n):
         steps = []
-        batch = torch.zeros(n, 1, 28, 28).to(self.C.device)
+        batch = torch.zeros(n, 1, 28, 28).to(self.G.device)
         for r in range(28):
             for c in range(28):
                 dist = self.forward(batch)

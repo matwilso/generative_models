@@ -7,24 +7,23 @@ from gms import common
 
 
 class RNN(common.Autoreg):
-    DC = common.AttrDict()
-    DC.append_loc = 1
-    DC.hidden_size = 1024  # this is big and it makes it train slowly, but it makes it have similar # parameters as other models.
+    DG = common.AttrDict()
+    DG.append_loc = 1
+    DG.hidden_size = 1024  # this is big and it makes it train slowly, but it makes it have similar # parameters as other models.
 
-    def __init__(self, C):
-        super().__init__(C)
-        self.C = C
+    def __init__(self, G):
+        super().__init__(G)
         self.input_shape = input_shape = (1, 28, 28)
-        self.input_channels = input_shape[0] + 2 if C.append_loc else input_shape[0]
+        self.input_channels = input_shape[0] + 2 if G.append_loc else input_shape[0]
         self.canvas_size = input_shape[1] * input_shape[2]
         self.lstm = nn.LSTM(
-            self.input_channels, self.C.hidden_size, num_layers=1, batch_first=True
+            self.input_channels, self.G.hidden_size, num_layers=1, batch_first=True
         )
-        self.fc = nn.Linear(self.C.hidden_size, input_shape[0])
+        self.fc = nn.Linear(self.G.hidden_size, input_shape[0])
 
     def loss(self, inp):
         bs = inp.shape[0]
-        x = common.append_location(inp) if self.C.append_loc else inp
+        x = common.append_location(inp) if self.G.append_loc else inp
 
         # make LSTM operate over 1 pixel at a time.
         x = (
@@ -34,12 +33,12 @@ class RNN(common.Autoreg):
         )
         # align it so we are predicting the next pixel. start with dummy first and feed everything put last real pixel.
         x = torch.cat(
-            (torch.zeros(bs, 1, self.input_channels).to(self.C.device), x[:, :-1]),
+            (torch.zeros(bs, 1, self.input_channels).to(self.G.device), x[:, :-1]),
             dim=1,
         )
 
-        h0 = torch.zeros(1, x.size(0), self.C.hidden_size).to(self.C.device)
-        c0 = torch.zeros(1, x.size(0), self.C.hidden_size).to(self.C.device)
+        h0 = torch.zeros(1, x.size(0), self.G.hidden_size).to(self.G.device)
+        c0 = torch.zeros(1, x.size(0), self.G.hidden_size).to(self.G.device)
 
         # Forward propagate LSTM
         out, _ = self.lstm(
@@ -53,24 +52,24 @@ class RNN(common.Autoreg):
 
     def sample(self, n):
         with torch.no_grad():
-            samples = torch.zeros(n, 1, self.input_channels).to(self.C.device)
-            C = torch.zeros(1, n, self.C.hidden_size).to(self.C.device)
-            c = torch.zeros(1, n, self.C.hidden_size).to(self.C.device)
+            samples = torch.zeros(n, 1, self.input_channels).to(self.G.device)
+            G = torch.zeros(1, n, self.G.hidden_size).to(self.G.device)
+            c = torch.zeros(1, n, self.G.hidden_size).to(self.G.device)
 
             for i in range(self.canvas_size):
                 x_inp = samples[:, [i]]
-                out, (C, c) = self.lstm(x_inp, (C, c))
+                out, (G, c) = self.lstm(x_inp, (G, c))
                 out = self.fc(out[:, 0, :])
                 prob = torch.sigmoid(out)
                 sample_pixel = torch.bernoulli(prob).unsqueeze(-1)  # n x 1 x 1
-                if self.C.append_loc:
+                if self.G.append_loc:
                     loc = np.array([i // 28, i % 28]) / 27
-                    loc = torch.FloatTensor(loc).to(self.C.device)
+                    loc = torch.FloatTensor(loc).to(self.G.device)
                     loc = loc.view(1, 1, 2).repeat(n, 1, 1)
                     sample_pixel = torch.cat((sample_pixel, loc), dim=-1)
                 samples = torch.cat((samples, sample_pixel), dim=1)
             samples = (
-                samples[:, 1:, 0] if self.C.append_loc else samples[:, 1:].squeeze(-1)
+                samples[:, 1:, 0] if self.G.append_loc else samples[:, 1:].squeeze(-1)
             )
             samples = samples.view(n, *self.input_shape)
             return samples.cpu(), []

@@ -10,18 +10,18 @@ from .simple_unet import SimpleUnet
 
 
 class DiffusionModel(common.GM):
-    DC = common.AttrDict()  # default C
-    DC.binarize = 0
-    DC.timesteps = 500  # seems to work pretty well for MNIST
-    DC.hidden_size = 128
-    DC.dropout = 0.0
+    DG = common.AttrDict()  # default C
+    DG.binarize = 0
+    DG.timesteps = 500  # seems to work pretty well for MNIST
+    DG.hidden_size = 128
+    DG.dropout = 0.0
 
-    def __init__(self, C):
-        super().__init__(C)
-        self.net = SimpleUnet(C)
-        self.diffusion = gd.GaussianDiffusion(C.timesteps)
-        self.optimizer = Adam(self.parameters(), lr=C.lr)
-        if C.pad32:
+    def __init__(self, G):
+        super().__init__(G)
+        self.net = SimpleUnet(G)
+        self.diffusion = gd.GaussianDiffusion(G.timesteps)
+        self.optimizer = Adam(self.parameters(), lr=G.lr)
+        if G.pad32:
             self.size = 32
         else:
             self.size = 28
@@ -34,7 +34,7 @@ class DiffusionModel(common.GM):
         return metrics
 
     def loss(self, x):
-        t = torch.randint(0, self.C.timesteps, (x.shape[0],)).to(x.device)
+        t = torch.randint(0, self.G.timesteps, (x.shape[0],)).to(x.device)
         metrics = self.diffusion.training_losses(self.net, x, t)
         metrics = {key: val.mean() for key, val in metrics.items()}
         loss = metrics['loss']
@@ -44,7 +44,7 @@ class DiffusionModel(common.GM):
         # draw samples and visualize the sampling process
         def proc(x):
             x = ((x + 1) * 127.5).clamp(0, 255).to(torch.uint8).cpu()
-            if self.C.pad32:
+            if self.G.pad32:
                 x = x[..., 2:-2, 2:-2]
             return x
 

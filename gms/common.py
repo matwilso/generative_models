@@ -46,16 +46,16 @@ def load_mnist(bs, binarize=True, pad32=False):
     return train_loader, test_loader
 
 
-def dump_logger(logger, writer, i, C):
+def dump_logger(logger, writer, i, G):
     print('=' * 30)
     print(i)
     for key in logger:
         val = np.mean(logger[key])
         writer.add_scalar(key, val, i)
         print(key, val)
-    print(C.full_cmd)
-    with open(pathlib.Path(C.logdir) / 'hps.yaml', 'w') as f:
-        yaml.dump(C, f)
+    print(G.full_cmd)
+    with open(pathlib.Path(G.logdir) / 'hps.yaml', 'w') as f:
+        yaml.dump(G, f)
     print('=' * 30)
     writer.flush()
     return defaultdict(lambda: [])
@@ -81,13 +81,13 @@ class AttrDict(dict):
 
 
 class GM(nn.Module):
-    DC = (
+    DG = (
         AttrDict()
     )  # default configuration. can be customized across models, both by changing the default value and by adding new options
 
-    def __init__(self, C):
+    def __init__(self, G):
         super().__init__()
-        self.C = C
+        self.G = G
         ## make the name be the name of the file (without .py)
         # self.name = pathlib.Path(inspect.getfile(self.__class__)).with_suffix('').name
         self.optimizer = None
@@ -98,7 +98,7 @@ class GM(nn.Module):
             self, 'loss'
         ), 'you are using the default train_step. this requires you to define a loss function that returns loss, metrics'
         if self.optimizer is None:
-            self.optimizer = Adam(self.parameters(), self.C.lr)
+            self.optimizer = Adam(self.parameters(), self.G.lr)
         self.optimizer.zero_grad()
         loss, metrics = self.loss(x)
         loss.backward()
@@ -130,7 +130,7 @@ class Autoreg(GM):
 class CategoricalHead(nn.Module):
     """take logits and produce a multinomial distribution independently"""
 
-    def __init__(self, in_n, out_n, C):
+    def __init__(self, in_n, out_n, G):
         super().__init__()
         self.layer = nn.Linear(in_n, out_n)
 
@@ -142,7 +142,7 @@ class CategoricalHead(nn.Module):
 class BinaryHead(nn.Module):
     """take logits and produce a bernoulli distribution independently"""
 
-    def __init__(self, in_n, out_n, C):
+    def __init__(self, in_n, out_n, G):
         super().__init__()
         self.layer = nn.Linear(in_n, out_n)
 

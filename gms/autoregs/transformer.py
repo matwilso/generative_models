@@ -10,31 +10,31 @@ from gms import common
 
 
 class TransformerCNN(common.Autoreg):
-    DC = common.AttrDict()
-    DC.n_layer = 2
-    DC.n_head = 4
-    DC.n_embed = 128
-    DC.lr = 1e-3
+    DG = common.AttrDict()
+    DG.n_layer = 2
+    DG.n_head = 4
+    DG.n_embed = 128
+    DG.lr = 1e-3
     """  the full GPT language model, with a context size of block_size """
 
-    def __init__(self, in_size=1, block_size=28 * 28, head='bin', C=None):
-        super().__init__(C)
-        assert C is not None, 'must pass in C'
+    def __init__(self, in_size=1, block_size=28 * 28, head='bin', G=None):
+        super().__init__(G)
+        assert G is not None, 'must pass in G'
         self.block_size = block_size
         self.in_size = in_size
         self.pos_emb = nn.Parameter(
-            torch.zeros(1, self.block_size, C.n_embed)
+            torch.zeros(1, self.block_size, G.n_embed)
         )  # learned position embedding
-        self.embed = nn.Linear(self.in_size, C.n_embed, bias=False)
+        self.embed = nn.Linear(self.in_size, G.n_embed, bias=False)
         self.blocks = nn.Sequential(
-            *[Block(self.block_size, C) for _ in range(C.n_layer)]
+            *[Block(self.block_size, G) for _ in range(G.n_layer)]
         )
-        self.ln_f = nn.LayerNorm(C.n_embed)
+        self.ln_f = nn.LayerNorm(G.n_embed)
         if head == 'bin':
-            self.dist_head = common.BinaryHead(C.n_embed, self.in_size, C)
+            self.dist_head = common.BinaryHead(G.n_embed, self.in_size, G)
         elif head == 'cat':
-            self.dist_head = common.CategoricalHead(C.n_embed, self.in_size, C)
-        self.optimizer = Adam(self.parameters(), lr=self.C.lr)
+            self.dist_head = common.CategoricalHead(G.n_embed, self.in_size, G)
+        self.optimizer = Adam(self.parameters(), lr=self.G.lr)
 
     def train_step(self, x):
         x = x.flatten(-2).permute(0, 2, 1)
@@ -45,9 +45,9 @@ class TransformerCNN(common.Autoreg):
         return {'nlogp': loss}
 
     def forward(self, x):
-        BS, _, C = x.shape
+        BS, _, G = x.shape
         # SHIFT RIGHT (add a padding on the left) so you can't see yourself
-        x = torch.cat([torch.zeros(BS, 1, C).to(self.C.device), x[:, :-1]], dim=1)
+        x = torch.cat([torch.zeros(BS, 1, G).to(self.G.device), x[:, :-1]], dim=1)
         # forward the GPT model
         x = self.embed(x)
         x += self.pos_emb  # each position maps to a (learnable) vector
@@ -58,7 +58,7 @@ class TransformerCNN(common.Autoreg):
 
     def sample(self, n):
         steps = []
-        batch = torch.zeros(n, self.block_size, self.in_size).to(self.C.device)
+        batch = torch.zeros(n, self.block_size, self.in_size).to(self.G.device)
         for i in range(self.block_size):
             dist = self.forward(batch)
             batch[:, i] = dist.sample()[:, i]
@@ -86,16 +86,16 @@ class CausalSelfAttention(nn.Module):
     explicit implementation here to show that there is nothing too scary here.
     """
 
-    def __init__(self, block_size, C):
+    def __init__(self, block_size, G):
         super().__init__()
         self.block_size = block_size
-        assert C.n_embed % C.n_head == 0
+        assert G.n_embed % G.n_head == 0
         # key, query, value projections for all heads
-        self.key = nn.Linear(C.n_embed, C.n_embed)
-        self.query = nn.Linear(C.n_embed, C.n_embed)
-        self.value = nn.Linear(C.n_embed, C.n_embed)
+        self.key = nn.Linear(G.n_embed, G.n_embed)
+        self.query = nn.Linear(G.n_embed, G.n_embed)
+        self.value = nn.Linear(G.n_embed, G.n_embed)
         # output projection
-        self.proj = nn.Linear(C.n_embed, C.n_embed)
+        self.proj = nn.Linear(G.n_embed, G.n_embed)
         # causal mask to ensure that attention is only applied to the left in the input sequence
         self.register_buffer(
             "mask",
@@ -103,7 +103,7 @@ class CausalSelfAttention(nn.Module):
                 1, 1, self.block_size, self.block_size
             ),
         )
-        self.n_head = C.n_head
+        self.n_head = G.n_head
 
     def forward(self, x, layer_past=None):
         B, T, C = x.size()
@@ -133,15 +133,15 @@ class CausalSelfAttention(nn.Module):
 class Block(nn.Module):
     """an unassuming Transformer block"""
 
-    def __init__(self, block_size, C):
+    def __init__(self, block_size, G):
         super().__init__()
-        self.ln1 = nn.LayerNorm(C.n_embed)
-        self.ln2 = nn.LayerNorm(C.n_embed)
-        self.attn = CausalSelfAttention(block_size, C)
+        self.ln1 = nn.LayerNorm(G.n_embed)
+        self.ln2 = nn.LayerNorm(G.n_embed)
+        self.attn = CausalSelfAttention(block_size, G)
         self.mlp = nn.Sequential(
-            nn.Linear(C.n_embed, 4 * C.n_embed),
+            nn.Linear(G.n_embed, 4 * G.n_embed),
             nn.GELU(),
-            nn.Linear(4 * C.n_embed, C.n_embed),
+            nn.Linear(4 * G.n_embed, G.n_embed),
         )
 
     def forward(self, x):
