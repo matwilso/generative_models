@@ -93,38 +93,38 @@ And should be treated in some isolation.
 #### [RNN/LSTM](gms/autoregs/rnn.py)
 Generate an MNIST image one pixel at a time with an LSTM
 ```
-python main.py --model=rnn 
+python -m gms.main --model=rnn
 ```
 #### [MADE](gms/autoregs/made.py)
 Run MADE on a flattened MNIST image
 ```
-python main.py --model=made 
+python -m gms.main --model=made
 ```
 #### [Wavenet](gms/autoregs/wavenet.py)
 Run a Wavenet on a flattened MNIST image
 ```
-python main.py --model=wavenet 
+python -m gms.main --model=wavenet
 ```
 #### [PixelCNN (original)](gms/autoregs/pixelcnn.py)
 ```
-python main.py --model=pixelcnn 
+python -m gms.main --model=pixelcnn
 ```
 #### [GatedPixelCNN (improved mask version)](gms/autoregs/gatedcnn.py)
 ```
-python main.py --model=gatedcnn 
+python -m gms.main --model=gatedcnn
 ```
 #### [TransformerCNN](gms/autoregs/transformer.py)
 Kind of like a PixelCNN but uses a transformer architecture where the individual pixels are as considered tokens (28x28=784 of them for MNIST).
 Kind of like ImageGPT.
 ```
-python main.py --model=transformer 
+python -m gms.main --model=transformer
 ```
 
 ## [Variational Autoencoders (VAEs)](gms/vaes/)
 
 #### [VAE (vanilla)](gms/vaes/vae.py)
 ```
-python main.py --model=vae 
+python -m gms.main --model=vae
 ```
 #### [VQ-VAE](gms/vaes/vqvae.py)
 
@@ -140,19 +140,19 @@ We instead downsample to 7x7 codes, which are 64-way categorical (K=64). This sp
 to 64^49 possible values that the latent can take on. So still pretty expressive.
 
 ```
-python main.py --model=vqvae 
+python -m gms.main --model=vqvae
 ```
 ## [Generative Adversarial Networks (GANs)](gms/gans/)
 
 #### [GAN (vanilla/scaled down DCGAN)](gms/gans/gan.py)
 ```
-python main.py --model=gan 
+python -m gms.main --model=gan
 ```
 
 ## [Diffusion Models](gms/diffusion/)
 
 ```
-python main.py --model=diffusion 
+python -m gms.main --model=diffusion
 ```
 
 (after 10 epochs of training. left: sampling process (x_500, x_499, x_498, ..., x_0), right: predictions of x_0, given current x_t.)

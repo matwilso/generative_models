@@ -10,7 +10,7 @@ from .simple_unet import SimpleUnet
 
 
 class DiffusionModel(common.GM):
-    DG = common.AttrDict()  # default C
+    DG = common.AttrDict()  # default G
     DG.binarize = 0
     DG.timesteps = 500  # seems to work pretty well for MNIST
     DG.hidden_size = 128

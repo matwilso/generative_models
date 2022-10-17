@@ -1,9 +1,13 @@
 # Generative Adversarial Networks (GANs)
 
-GANs are pretty well covered elsewhere, due to their popularity, and the basic idea is pretty simple, so I just treat them briefly.
+GANs are pretty well covered elsewhere due to their popularity, and the basic idea is pretty simple, so I just treat them briefly.
 
-GANs were dominating in popularity for several years, because they are relatively inexpensive to train and sample from and they can be made to produce high quality visual samples. But recently likelihood based approaches have been giving them a run for their money, in recent work like GPT-3, VQ-VAE2, and DALL-E, for example.
+GANs were dominant for several years, and they are relatively inexpensive to train and sample from and they can produce high quality samples (e.g., with BigGAN).
+But GANs are known to suffer from mode collapse and training instabilities.
+And they are kind of dead as SOTA architecture for quality results. Everything these days is either transformer autoregressive model or a diffusion model.
+GANs are probably worth still worth studying a bit, and many interesting ideas in generative modeling originated from GANs or relate in some way.
+Plus perceptual losses may still be a thing.
 
-The GAN loss tends to incentivize covering individual modes very well (but with mode collpase),
-while the likelihood loss tends to incentivize covering all modes (but with blurriness)
-Perhaps some mixture of the two losses is a good way forward.
+<!--
+# TODO: cover gans a bit more
+-->

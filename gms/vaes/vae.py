@@ -8,7 +8,7 @@ from gms import common
 
 
 class VAE(common.GM):
-    DG = common.AttrDict()  # default C
+    DG = common.AttrDict()  # default G
     DG.z_size = 128
     DG.beta = 1.0
 
