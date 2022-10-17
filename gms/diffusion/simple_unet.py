@@ -17,6 +17,7 @@ This is likely due to fewer layers and not using attention.
 class SimpleUnet(nn.Module):
     def __init__(self, G):
         super().__init__()
+        self.G = G
         channels = G.hidden_size
         dropout = G.dropout
         time_embed_dim = 2 * channels

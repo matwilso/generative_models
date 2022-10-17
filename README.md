@@ -1,40 +1,13 @@
 # generative_models
 
-**Implementations of fundamental deep generative models in PyTorch. (currently: Autoregressive models, VAEs, GANs, and Diffusion models)**
+**[Motivation](#motivation) | [Autoregressive models 📃](#autoregressive-models) | [VAEs 🪞](#variational-autoencoders-vaes) | [GANs 🧑‍🎨/🕵](#generative-adversarial-networks-gans) | [Diffusion models 🧪](#diffusion-models)**
 
-<!--, along with descriptions using simple language.-->
-
-<!--probably ought to add some description of why i think generative models are important to understand-->
-
-Partially these are my notes to understand the algorithms, made public to incentivize myself to be thorough and make the code clean.
-Beyond that, the goal is to provide a standardized repository for the important fundamental generative modeling algorithms,
-with explanations and code that are as simple as possible to understand.
-
-Some of these implementations likely won't scale beyond MNIST; they are designed to represent the fundamental ideas as concisely as possible.
-(Most models are expressed within about 100 lines of code, including network architecture definitions---except for diffusion models, which get a bit messy.)
+The goal of this repo is to provide implementations of the important fundamental approaches to generative modeling, with explanations and code that are as simple as possible to understand (in pytorch).
+Most models are expressed within about 100 lines of code, including network architecture definitions---except for diffusion models, which get a bit messy 😅.
+As such, they do not contain all SOTA architectures or other tricks.
 
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard. See usage below.
-The performance of these implementations should not be considered as evidence for or against an algorithm,
-as they have not been well tuned in many cases, nor have extra tricks been applied.
-
-**Contents**
-- [generative_models](#generative_models)
-  - [Introduction](#introduction)
-  - [Autoregressive models](#autoregressive-models)
-      - [RNN/LSTM](#rnnlstm)
-      - [MADE](#made)
-      - [Wavenet](#wavenet)
-      - [PixelCNN (original)](#pixelcnn-original)
-      - [GatedPixelCNN (improved mask version)](#gatedpixelcnn-improved-mask-version)
-      - [TransformerCNN](#transformercnn)
-  - [Variational Autoencoders (VAEs)](#variational-autoencoders-vaes)
-      - [VAE (vanilla)](#vae-vanilla)
-      - [VQ-VAE](#vq-vae)
-  - [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
-      - [GAN (vanilla/scaled down DCGAN)](#gan-vanillascaled-down-dcgan)
-  - [Diffusion Models](#diffusion-models)
-  - [Future](#future)
 
 **Install**
 ```
@@ -44,26 +17,23 @@ pip install -e .
 pip install -r requirements.txt
 ```
 
-## Introduction
+## Motivation
 
 >*"What I cannot create I do not understand"* - Feynman
 
 >*"It is important to view knowledge as sort of a semantic tree -- make sure you understand the fundamental principles, ie the trunk and big branches, before you get into the leaves/details or there is nothing for them to hang on to"* - Elon
 
-Unsupervised learning is an important area of machine learning; unsupervised approaches can extract many more bits from the environment than supervised learning and reinforcement learning can,
-which makes them much better suited for training extremely powerful neural networks (i.e., the Cake Argument).
-Unsupervised learning is thus going to be a major driving force behind progress in AI fields ([robot learning](https://matwilso.github.io/robot-future/), for example).
+Unsupervised learning algorithms can extract many more bits from the environment than supervised learning and reinforcement learning can,
+which makes them much better suited for training larger and more powerful neural networks (a la the LeCake argument).
+Unsupervised learning is thus going to be a major driving force behind progress in all AI fields ([robot learning](https://matwilso.github.io/robot-future/), for example), and is worth studying and becoming an expert on.
 
-There are many specific approaches to unsupervised learning; each face different trade-offs.
-This repo focuses specifically on generative modeling, and does not yet include contrastive representation learning approaches for example.
-It is unclear which approaches are going to end up being most useful, so it is wortwhile digging in to the details and really understanding the various approaches.
-This repo offers some intuitive explanations, and simple as possible code for demonstrating these
-systems on MNIST digits. For further resources, I would suggest the [Deep Unsupervised Learning Berkeley Course](https://sites.google.com/view/berkeley-cs294-158-sp20/) and the [Deep Learning Textbook (chapters 15-20)](https://www.deeplearningbook.org/).
+There are many specific approaches to unsupervised learning and generative modeling specifically, and each face different trade-offs.
+This repo offers some intuitive explanations, and simple as possible code for demonstrating and experimenting with generative models specifically on MNIST digits.  For further resources, I would suggest the [Deep Unsupervised Learning Berkeley Course](https://sites.google.com/view/berkeley-cs294-158-sp20/) and the [Deep Learning Textbook (chapters 15-20)](https://www.deeplearningbook.org/).
 (Parts of the autoregressive code are based on demos from the Berkeley course. Other parts of the code
 are based on various repos on the internet, which in turn are based on further upstream sources, and I provide links where relevant.
 The main thing I aim for is concise and easy to understand code, and for standardization across algorithms to the extent possible.
-I think my [VQ-VAE](./gms/vaes/vqvae.py) and [Diffusion models](./gms/diffusion/diffusion.py)
-are especially valuable in their simplicity, compared to implementations I have seen of them online.)
+My [VQ-VAE](./gms/vaes/vqvae.py) and [Diffusion models](./gms/diffusion/diffusion.py)
+are especially simple compared to implementations I have seen of them online.)
 
 <!--
 , so it is important
@@ -162,10 +132,10 @@ python -m gms.main --model=diffusion
 
 
 ## Future
-- EBM
-- Flows (not for awhile. i got sick of flows after messing with them a bit ago. i find them a bit messy)
+- EBMs. Not used in any recent SOTA results afaik, but knowing about EBMs seems to unite a few other approaches like GANs and Diffusion models in my mind. 
+- Flows (eh might just skip them. i got sick of flows after messing with them a bit ago. i find them quite messy in practice. plus not much seems to have happened with them. they're too limiting in constraints they place on architecture it seems.)
 - Non-generative self-supervised learning. contrastive.
-- Score matching?
+- Score matching? seems quite related to diffusion models
 
 // TODO: more explanations of the algorithms <br>
 // TODO: add class condition <br>
