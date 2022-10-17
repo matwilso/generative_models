@@ -9,7 +9,7 @@ from gms.autoregs.transformer import TransformerCNN
 
 
 class VQVAE(common.GM):
-    DG = common.AttrDict()  # default C
+    DG = common.AttrDict()  # default G
     DG.vqD = 64
     DG.vqK = 64
     DG.beta = 0.25

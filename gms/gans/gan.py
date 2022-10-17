@@ -9,7 +9,7 @@ from gms import common
 
 
 class GAN(common.GM):
-    DG = common.AttrDict()  # default C
+    DG = common.AttrDict()  # default G
     DG.noise_size = 128
     DG.binarize = (
         0  # don't binarize the data for GAN, because it's easier to deal with this way.
