@@ -25,7 +25,7 @@ pip install -r requirements.txt
 
 Unsupervised learning algorithms can extract many more bits from the environment than supervised learning and reinforcement learning can,
 which makes them much better suited for training larger and more powerful neural networks (a la the LeCake argument).
-Unsupervised learning is thus going to be a major driving force behind progress in all AI fields ([robot learning](https://matwilso.github.io/robot-future/), for example), and is worth studying and becoming an expert on.
+Unsupervised learning is thus likely going to be a major driving force behind progress in all AI fields ([robot learning](https://matwilso.github.io/robot-future/), for example), and is worth studying and becoming an expert on.
 
 There are many specific approaches to unsupervised learning and generative modeling specifically, and each face different trade-offs.
 This repo offers some intuitive explanations, and simple as possible code for demonstrating and experimenting with generative models specifically on MNIST digits.  For further resources, I would suggest the [Deep Unsupervised Learning Berkeley Course](https://sites.google.com/view/berkeley-cs294-158-sp20/) and the [Deep Learning Textbook (chapters 15-20)](https://www.deeplearningbook.org/).
