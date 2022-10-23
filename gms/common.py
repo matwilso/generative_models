@@ -133,6 +133,7 @@ class GM(nn.Module):
             self.optimizer = Adam(self.parameters(), self.G.lr)
         self.optimizer.zero_grad()
         loss, metrics = self.loss(x)
+        metrics = {f'{self.G.model}/{k}': v for k, v in metrics.items()}
         loss.backward()
         self.optimizer.step()
         return metrics
