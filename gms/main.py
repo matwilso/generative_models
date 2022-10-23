@@ -83,6 +83,7 @@ def train(model, train_ds, test_ds, G):
 def eval(model, train_ds, test_ds, G):
     assert G.arbiter_dir != Path('.'), "need to pass in arbiter dir"
     assert G.weights_from != Path('.'), "need to pass in a model ckpt to eval on"
+    assert G.bs == 500, "do bs 500"
     arbiter = torch.jit.load(G.arbiter_dir / 'arbiter.pt').to(G.device)
     model.load_state_dict(torch.load(G.weights_from, map_location=G.device))
     model.to(G.device)
@@ -92,11 +93,9 @@ def eval(model, train_ds, test_ds, G):
     model.eval()
     all_z_sample = []
     all_z_real = []
-    import time
 
     with torch.no_grad():
         for i, test_batch in enumerate(test_ds):
-            start = time.time()
             test_batch[0], test_batch[1] = test_batch[0].to(G.device), test_batch[1].to(
                 G.device
             )
@@ -106,24 +105,17 @@ def eval(model, train_ds, test_ds, G):
             z_real = arbiter(test_batch[0])
             all_z_real.append(z_real)
             all_z_sample.append(z_samp)
-            print(f"b{i}", time.time() - start)
-            if i == 10:
-                break
+            break
     # run the model specific evaluate function. usually draws samples and creates other relevant visualizations.
     fid_buff_out = fid_buffer.compute()
     print(f"{fid_buff_out = }")
+    z_samp = z_samp
+    z_real = z_real
     fid = common.compute_fid(z_samp.cpu().numpy(), z_real.cpu().numpy())
     precision, recall, f1 = map(
-        lambda x: x.cpu().numpy(), common.precision_recall_f1(z_real, z_samp)
+        lambda x: x.item(), common.precision_recall_f1(z_real, z_samp)
     )
-    for idx in [5000, 2500, 1000, 500, 100]:
-        z_samp = z_samp[:idx]
-        z_real = z_real[:idx]
-        fid = common.compute_fid(z_samp.cpu().numpy(), z_real.cpu().numpy())
-        precision, recall, f1 = map(
-            lambda x: x.item(), common.precision_recall_f1(z_real, z_samp)
-        )
-        print(f"{idx = }: {fid = } {precision = } {recall = } {f1 = }")
+    print(f"{fid = } {precision = } {recall = } {f1 = }")
 
 
 if __name__ == '__main__':
