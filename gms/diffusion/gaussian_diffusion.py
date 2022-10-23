@@ -31,7 +31,6 @@ class GaussianDiffusion:
         alphas = 1.0 - self.betas
         self.alphas_cumprod = np.cumprod(alphas, axis=0)
         self.alphas_cumprod_prev = np.append(1.0, self.alphas_cumprod[:-1])
-        self.alphas_cumprod_next = np.append(self.alphas_cumprod[1:], 0.0)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
         self.sqrt_alphas_cumprod = np.sqrt(self.alphas_cumprod)
@@ -140,15 +139,15 @@ class GaussianDiffusion:
 
     def _predict_eps_from_xstart(self, x_t, t, pred_xstart):
         return (
-            self.sqrt_recip_alphas_cumprod * x_t - pred_xstart
-        ) / self.sqrt_recipm1_alphas_cumprod
+            self.sqrt_recip_alphas_cumprod[t] * x_t - pred_xstart
+        ) / self.sqrt_recipm1_alphas_cumprod[t]
 
     def _ddim_sample_step(
         self,
         model,
         x,
         t,
-        model_kwargs=None,
+        model_kwargs={},
         eta=0.0,
     ):
         """
@@ -165,8 +164,8 @@ class GaussianDiffusion:
         # Usually our model outputs epsilon, but we re-derive it
         # in case we used x_start or x_prev prediction.
         eps = self._predict_eps_from_xstart(x, t, out["pred_xstart"])
-        alpha_bar = (self.alphas_cumprod, t, x.shape)
-        alpha_bar_prev = self.alphas_cumprod_prev
+        alpha_bar = self.alphas_cumprod[t]
+        alpha_bar_prev = self.alphas_cumprod_prev[t]
         sigma = (
             eta
             * torch.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar))
@@ -189,7 +188,7 @@ class GaussianDiffusion:
         model,
         shape,
         noise=None,
-        model_kwargs=None,
+        model_kwargs={},
         eta=0.0,
     ):
         """
@@ -216,7 +215,9 @@ class GaussianDiffusion:
                 outs += [out]
                 img = out["sample"]
 
-        return img, outs
+        return outs
+
+    # LOSS TERMS AND LOSSES
 
     def _vb_terms_bpd(self, model, x_start, x_t, t, model_kwargs={}):
         """
@@ -243,7 +244,6 @@ class GaussianDiffusion:
         )  # use reconstruction loss only if t == 0
         return {"output": output, "pred_xstart": out["pred_xstart"]}
 
-    # LOSSES AND LOSS TERMS
     def training_losses(self, model, x_start, t, model_kwargs={}):
         """Compute training losses for an image and timesteps"""
         terms = {}
