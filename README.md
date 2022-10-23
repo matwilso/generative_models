@@ -77,17 +77,17 @@ python -m gms.main --model=wavenet
 ```
 #### [PixelCNN (original)](gms/autoregs/pixelcnn.py)
 ```
-python -m gms.main --model=pixelcnn
+python -m gms.main --model=pixel_cnn
 ```
 #### [GatedPixelCNN (improved mask version)](gms/autoregs/gatedcnn.py)
 ```
-python -m gms.main --model=gatedcnn
+python -m gms.main --model=gated_pixel_cnn
 ```
-#### [TransformerCNN](gms/autoregs/transformer.py)
+#### [PixelTransformer](gms/autoregs/transformer.py)
 Kind of like a PixelCNN but uses a transformer architecture where the individual pixels are as considered tokens (28x28=784 of them for MNIST).
 Kind of like ImageGPT.
 ```
-python -m gms.main --model=transformer
+python -m gms.main --model=pixel_transformer
 ```
 
 ## [Variational Autoencoders (VAEs)](gms/vaes/)
@@ -103,7 +103,7 @@ the prior that can produce the indexes of the latent codes, using a PixelCNN typ
 Instead we train everything in a single Phase.
 It's possible that this will lead to worse samples because the codes are constantly shifting so the PixelCNN has a harder time, but it simplifies
 the code and lets you train it all in a single run.
-And we also use our TransformerCNN, instead of our PixelCNN.
+And we also use our PixelTransformer, instead of our PixelCNN.
 
 Also VQ-VAE usually produces codes in a 32x32 space, which is larger than an MNIST image lol.
 We instead downsample to 7x7 codes, which are 64-way categorical (K=64). This space still amounts 
@@ -122,7 +122,7 @@ python -m gms.main --model=gan
 ## [Diffusion Models](gms/diffusion/)
 
 ```
-python -m gms.main --model=diffusion
+python -m gms.main --model=diffusion_model
 ```
 
 (after 10 epochs of training. left: sampling process (x_500, x_499, x_498, ..., x_0), right: predictions of x_0, given current x_t.)

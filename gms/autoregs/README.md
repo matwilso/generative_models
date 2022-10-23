@@ -21,7 +21,7 @@ As long as you mix this B-types with at least one A-type, autoregressive orderin
 
 <!--TODO: include my drawings and longer explanations -->
 
-I would recommend stepping through the RNN approach, then Wavenet, then PixelCNN or TransformerCNN, to see how these models work and how masking is done.
+I would recommend stepping through the RNN approach, then Wavenet, then PixelCNN or PixelTransformer, to see how these models work and how masking is done.
 
 <!--
 

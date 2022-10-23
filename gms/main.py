@@ -1,13 +1,14 @@
 import argparse
-import pathlib
 import sys
 import time
 from itertools import count
+from pathlib import Path
 
 import torch
+from ignite.metrics import FID
 from torch.utils.tensorboard import SummaryWriter
 
-from gms import autoregs, common, diffusion, gans, vaes
+from gms import common
 
 # TRAINING SCRIPT
 
@@ -18,45 +19,20 @@ G.hidden_size = 256
 G.device = 'cuda'
 G.num_epochs = 50
 G.save_n = 100
-G.logdir = pathlib.Path('./logs/')
+G.logdir = Path('./logs/')
 G.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
 G.lr = 3e-4
 G.class_cond = 0
 G.binarize = 1
 G.pad32 = 0
+G.mode = 'train'
+G.weights_from = Path('.')
+G.arbiter_dir = Path('.')
 
-if __name__ == '__main__':
-    # PARSE CMD LINE
-    parser = argparse.ArgumentParser()
-    for key, value in G.items():
-        parser.add_argument(f'--{key}', type=common.args_type(value), default=value)
-    tempG, _ = parser.parse_known_args()
-    # SETUP
-    Model = {
-        'rnn': autoregs.RNN,
-        'made': autoregs.MADE,
-        'wavenet': autoregs.Wavenet,
-        'pixelcnn': autoregs.PixelCNN,
-        'gatedcnn': autoregs.GatedPixelCNN,
-        'transformer': autoregs.TransformerCNN,
-        'vae': vaes.VAE,
-        'vqvae': vaes.VQVAE,
-        'gan': gans.GAN,
-        'diffusion': diffusion.DiffusionModel,
-    }[tempG.model]
-    defaults = {'logdir': tempG.logdir / tempG.model}
-    for key, value in Model.DG.items():
-        defaults[key] = value
-        if key not in tempG:
-            parser.add_argument(f'--{key}', type=type(value), default=value)
-    parser.set_defaults(**defaults)
-    G = parser.parse_args()
-    model = Model(G=G).to(G.device)
+
+def train(model, train_ds, test_ds, G):
     writer = SummaryWriter(G.logdir)
     logger = common.dump_logger({}, writer, 0, G)
-    train_ds, test_ds = common.load_mnist(G.bs, binarize=G.binarize, pad32=G.pad32)
-    num_vars = common.count_vars(model)
-    print('num_vars', num_vars)
 
     # TRAINING LOOP
     for epoch in count():
@@ -98,5 +74,79 @@ if __name__ == '__main__':
             path = G.logdir / 'model.pt'
             print("SAVED MODEL", path)
             torch.save(model.state_dict(), path)
+            if G.model == 'arbiter':
+                model.save(G.logdir, batch[0])
         if epoch >= G.num_epochs:
             break
+
+
+def eval(model, train_ds, test_ds, G):
+    assert G.arbiter_dir != Path('.'), "need to pass in arbiter dir"
+    assert G.weights_from != Path('.'), "need to pass in a model ckpt to eval on"
+    arbiter = torch.jit.load(G.arbiter_dir / 'arbiter.pt').to(G.device)
+    model.load_state_dict(torch.load(G.weights_from, map_location=G.device))
+    model.to(G.device)
+    fid_buffer = FID(num_features=64, feature_extractor=arbiter, device=G.device)
+
+    # TEST
+    model.eval()
+    all_z_sample = []
+    all_z_real = []
+    import time
+
+    with torch.no_grad():
+        for i, test_batch in enumerate(test_ds):
+            start = time.time()
+            test_batch[0], test_batch[1] = test_batch[0].to(G.device), test_batch[1].to(
+                G.device
+            )
+            samp = model.sample(test_batch[0].shape[0])
+            fid_buffer.update((samp, test_batch[0]))
+            z_samp = arbiter(samp)
+            z_real = arbiter(test_batch[0])
+            all_z_real.append(z_real)
+            all_z_sample.append(z_samp)
+            print(f"b{i}", time.time() - start)
+            if i == 10:
+                break
+    # run the model specific evaluate function. usually draws samples and creates other relevant visualizations.
+    fid_buff_out = fid_buffer.compute()
+    print(f"{fid_buff_out = }")
+    fid = common.compute_fid(z_samp.cpu().numpy(), z_real.cpu().numpy())
+    precision, recall, f1 = map(
+        lambda x: x.cpu().numpy(), common.precision_recall_f1(z_real, z_samp)
+    )
+    for idx in [5000, 2500, 1000, 500, 100]:
+        z_samp = z_samp[:idx]
+        z_real = z_real[:idx]
+        fid = common.compute_fid(z_samp.cpu().numpy(), z_real.cpu().numpy())
+        precision, recall, f1 = map(
+            lambda x: x.item(), common.precision_recall_f1(z_real, z_samp)
+        )
+        print(f"{idx = }: {fid = } {precision = } {recall = } {f1 = }")
+
+
+if __name__ == '__main__':
+    # PARSE CMD LINE
+    parser = argparse.ArgumentParser()
+    for key, value in G.items():
+        parser.add_argument(f'--{key}', type=common.args_type(value), default=value)
+    tempG, _ = parser.parse_known_args()
+    # SETUP
+    Model = common.discover_models()[tempG.model]
+    defaults = {'logdir': tempG.logdir / tempG.model}
+    for key, value in Model.DG.items():
+        defaults[key] = value
+        if key not in tempG:
+            parser.add_argument(f'--{key}', type=type(value), default=value)
+    parser.set_defaults(**defaults)
+    G = parser.parse_args()
+    model = Model(G=G).to(G.device)
+    train_ds, test_ds = common.load_mnist(G.bs, binarize=G.binarize, pad32=G.pad32)
+    num_vars = common.count_vars(model)
+    print('num_vars', num_vars)
+
+    if G.mode == 'train':
+        train(model, train_ds, test_ds, G)
+    else:
+        eval(model, train_ds, test_ds, G)

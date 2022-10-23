@@ -5,7 +5,7 @@ from torch import distributions as tdib
 from torch.optim import Adam
 
 from gms import common
-from gms.autoregs.transformer import TransformerCNN
+from gms.autoregs.pixel_transformer import PixelTransformer
 
 
 class VQVAE(common.GM):
@@ -25,12 +25,12 @@ class VQVAE(common.GM):
         self.vq = VectorQuantizer(G.vqK, G.vqD, G.beta, G)
         self.decoder = Decoder(G)
         # prior. this is usually learned after the other stuff has been trained, but we do it all in one swoop.
-        self.transformerCNN = TransformerCNN(
+        self.pixel_transformer = PixelTransformer(
             in_size=G.vqK, block_size=7 * 7, head='cat', G=G
         )
         self.optimizer = Adam(self.parameters(), lr=G.lr)
         self.prior_optimizer = Adam(
-            self.transformerCNN.parameters(), lr=G.prior_lr, betas=(0.5, 0.999)
+            self.pixel_transformer.parameters(), lr=G.prior_lr, betas=(0.5, 0.999)
         )
 
     def train_step(self, x):
@@ -44,7 +44,7 @@ class VQVAE(common.GM):
         # PRIOR
         self.zero_grad()
         code_idxs = F.one_hot(idxs.detach(), self.G.vqK).float().flatten(1, 2)
-        dist = self.transformerCNN.forward(code_idxs)
+        dist = self.pixel_transformer.forward(code_idxs)
         prior_loss = -dist.log_prob(code_idxs).mean()
         prior_loss.backward()
         self.prior_optimizer.step()
@@ -63,7 +63,7 @@ class VQVAE(common.GM):
         return embed_loss, decoded, perplexity, idxs
 
     def sample(self, n):
-        prior_idxs = self.transformerCNN.sample(n)[0]
+        prior_idxs = self.pixel_transformer.sample(n)[0]
         prior_enc = self.vq.idx_to_encoding(prior_idxs)
         prior_enc = prior_enc.reshape([n, 7, 7, -1]).permute(0, 3, 1, 2)
         decoded = self.decoder(prior_enc)

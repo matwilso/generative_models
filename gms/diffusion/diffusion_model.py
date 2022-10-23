@@ -4,9 +4,8 @@ import torch
 from torch.optim import Adam
 
 from gms import common
-
-from . import gaussian_diffusion as gd
-from .simple_unet import SimpleUnet
+from gms.diffusion import gaussian_diffusion as gd
+from gms.diffusion.simple_unet import SimpleUnet
 
 
 class DiffusionModel(common.GM):
@@ -39,6 +38,13 @@ class DiffusionModel(common.GM):
         metrics = {key: val.mean() for key, val in metrics.items()}
         loss = metrics['loss']
         return loss, metrics
+
+    def sample(self, n):
+        noise = torch.randn((n, 1, self.size, self.size), device=self.G.device)
+        samples = self.diffusion.p_sample(
+            self.net, (n, 1, self.size, self.size), noise=noise
+        )
+        return samples[-1]['sample']
 
     def evaluate(self, writer, x, epoch):
         # draw samples and visualize the sampling process

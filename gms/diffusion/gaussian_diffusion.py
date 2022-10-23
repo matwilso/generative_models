@@ -1,15 +1,16 @@
 """
-This code started out as a PyTorch port of Ho et al's diffusion models:
-https://github.com/hojonathanho/diffusion/blob/1e0dceb3b3495bbe19116a5e1b3596cd0706c543/diffusion_tf/diffusion_utils_2.py
-
-Then it was improved here: https://github.com/openai/improved-diffusion
-
-Then matwilso cut everything but base features and a single choice of settings, so that the code was as short and simple as possible.
+code forked from here: https://github.com/openai/guided-diffusion/blob/main/guided_diffusion/gaussian_diffusion.py
 """
 import numpy as np
 import torch
 
-from .losses import discretized_gaussian_log_likelihood, mean_flat, normal_kl
+from gms.diffusion.utils import (
+    Extractable,
+    discretized_gaussian_log_likelihood,
+    get_cosine_beta_schedule,
+    mean_flat,
+    normal_kl,
+)
 
 
 class GaussianDiffusion:
@@ -24,14 +25,14 @@ class GaussianDiffusion:
             num_timesteps  # steps of diffusion (e.g., 1000 in Ho paper)
         )
         # initialize betas and calculate alphas for each timestep
-        self.betas = np.linspace(
-            0.0001, 0.02, self.num_timesteps, dtype=np.float64
-        )  # linear version
+        # beta = variance
+        self.betas = get_cosine_beta_schedule(num_timesteps)
         self.log_betas = np.log(self.betas)
         alphas = 1.0 - self.betas
         self.alphas_cumprod = np.cumprod(alphas, axis=0)
         self.alphas_cumprod_prev = np.append(1.0, self.alphas_cumprod[:-1])
         self.alphas_cumprod_next = np.append(self.alphas_cumprod[1:], 0.0)
+
         # calculations for diffusion q(x_t | x_{t-1}) and others
         self.sqrt_alphas_cumprod = np.sqrt(self.alphas_cumprod)
         self.sqrt_one_minus_alphas_cumprod = np.sqrt(1.0 - self.alphas_cumprod)
@@ -137,28 +138,85 @@ class GaussianDiffusion:
                 img = out["sample"]
         return outs
 
-    # LOSSES AND LOSS TERMS
-    def training_losses(self, model, x_start, t, model_kwargs={}):
-        """Compute training losses for an image and timesteps"""
-        terms = {}
-        # add diffusion noise according to the t values
-        noise = torch.randn_like(x_start)
-        x_t = self.q_sample(x_start, t, noise=noise)
+    def _predict_eps_from_xstart(self, x_t, t, pred_xstart):
+        return (
+            self.sqrt_recip_alphas_cumprod * x_t - pred_xstart
+        ) / self.sqrt_recipm1_alphas_cumprod
 
-        # pass the noisy image to the model and learn to predict the noise and variance.
-        model_output = model(x_t, t, **model_kwargs)
-        eps, model_var = torch.split(model_output, x_t.shape[1], dim=1)
-        terms["mse"] = mean_flat((noise - eps) ** 2)
-        # learn the variance using the variational bound, but don't let it affect our mean prediction.
-        frozen_out = torch.cat([eps.detach(), model_var], dim=1)
-        terms["vb"] = self._vb_terms_bpd(
-            model=lambda *args, r=frozen_out: r, x_start=x_start, x_t=x_t, t=t
-        )["output"]
-        terms["vb"] *= (
-            self.num_timesteps / 1000.0
-        )  # Divide by 1000 for equivalence with initial implementation. else VB term hurts the MSE term.
-        terms["loss"] = terms["mse"] + terms["vb"]
-        return terms
+    def _ddim_sample_step(
+        self,
+        model,
+        x,
+        t,
+        model_kwargs=None,
+        eta=0.0,
+    ):
+        """
+        Sample x_{t-1} from the model using DDIM.
+
+        Same usage as _p_sample_step().
+        """
+        out = self.p_dist(
+            model,
+            x,
+            t,
+            model_kwargs=model_kwargs,
+        )
+        # Usually our model outputs epsilon, but we re-derive it
+        # in case we used x_start or x_prev prediction.
+        eps = self._predict_eps_from_xstart(x, t, out["pred_xstart"])
+        alpha_bar = (self.alphas_cumprod, t, x.shape)
+        alpha_bar_prev = self.alphas_cumprod_prev
+        sigma = (
+            eta
+            * torch.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar))
+            * torch.sqrt(1 - alpha_bar / alpha_bar_prev)
+        )
+        # Equation 12.
+        noise = torch.randn_like(x)
+        mean_pred = (
+            out["pred_xstart"] * torch.sqrt(alpha_bar_prev)
+            + torch.sqrt(1 - alpha_bar_prev - sigma**2) * eps
+        )
+        nonzero_mask = (
+            (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
+        )  # no noise when t == 0
+        sample = mean_pred + nonzero_mask * sigma * noise
+        return {"sample": sample, "pred_xstart": out["pred_xstart"]}
+
+    def ddim_sample(
+        self,
+        model,
+        shape,
+        noise=None,
+        model_kwargs=None,
+        eta=0.0,
+    ):
+        """
+        Generate samples from the model using DDIM.
+
+        Same usage as p_sample().
+        """
+        device = next(model.parameters()).device
+        assert isinstance(shape, (tuple, list))
+        img = noise if noise is not None else torch.randn(*shape, device=device)
+        indices = list(range(self.num_timesteps))[::-1]
+        outs = []
+
+        for i in indices:
+            t = torch.tensor([i] * shape[0], device=device)
+            with torch.no_grad():
+                out = self._ddim_sample_step(
+                    model,
+                    img,
+                    t,
+                    model_kwargs=model_kwargs,
+                    eta=eta,
+                )
+                outs += [out]
+                img = out["sample"]
+
+        return img, outs
 
     def _vb_terms_bpd(self, model, x_start, x_t, t, model_kwargs={}):
         """
@@ -185,15 +243,25 @@ class GaussianDiffusion:
         )  # use reconstruction loss only if t == 0
         return {"output": output, "pred_xstart": out["pred_xstart"]}
 
+    # LOSSES AND LOSS TERMS
+    def training_losses(self, model, x_start, t, model_kwargs={}):
+        """Compute training losses for an image and timesteps"""
+        terms = {}
+        # add diffusion noise according to the t values
+        noise = torch.randn_like(x_start)
+        x_t = self.q_sample(x_start, t, noise=noise)
 
-class Extractable:
-    """Class to enable extracting values from a 1-D numpy array for a batch of indices. Wrap your array in this, then it enables easy time indexing."""
-
-    def __init__(self, arr):
-        self.arr = arr
-
-    def __getitem__(self, t):
-        res = torch.from_numpy(self.arr).to(device=t.device)[t].float()
-        return res[
-            :, None, None, None
-        ]  # reshape (BS,) --> (BS, C=1, H=1, W=1) to make image size
+        # pass the noisy image to the model and learn to predict the noise and variance.
+        model_output = model(x_t, t, **model_kwargs)
+        eps, model_var = torch.split(model_output, x_t.shape[1], dim=1)
+        terms["mse"] = mean_flat((noise - eps) ** 2)
+        # learn the variance using the variational bound, but don't let it affect our mean prediction.
+        frozen_out = torch.cat([eps.detach(), model_var], dim=1)
+        terms["vb"] = self._vb_terms_bpd(
+            model=lambda *args, r=frozen_out: r, x_start=x_start, x_t=x_t, t=t
+        )["output"]
+        terms["vb"] *= (
+            self.num_timesteps / 1000.0
+        )  # Divide by 1000 for equivalence with initial implementation. else VB term hurts the MSE term.
+        terms["loss"] = terms["mse"] + terms["vb"]
+        return terms

@@ -1,7 +1,5 @@
 
-test:
-	format-check
-	lint
+test: format-check lint
 
 lint:
 	find . -type f -name "*.py" | xargs pylint

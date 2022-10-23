@@ -22,7 +22,10 @@ class VAE(common.GM):
         """VAE loss"""
         z_post = self.encoder(x)  # posterior  p(z|x)
         decoded = self.decoder(z_post.rsample())  # reconstruction p(x|z)
-        recon_loss = -tdib.Bernoulli(logits=decoded).log_prob(x).mean((1, 2, 3))
+        if self.G.binarize:
+            recon_loss = -tdib.Bernoulli(logits=decoded).log_prob(x).mean((1, 2, 3))
+        else:
+            recon_loss = -tdib.Normal(decoded, 1).log_prob(x).mean((1, 2, 3))
         # kl div constraint
         z_prior = tdib.Normal(0, 1)
         kl_loss = tdib.kl_divergence(z_post, z_prior).mean(-1)
@@ -44,10 +47,12 @@ class VAE(common.GM):
         samples = self.sample(25)
         writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
         z_post = self.encoder(x[:8])
+        truth = x[:8].cpu()
         recon = self._decode(z_post.mean)
-        recon = torch.cat([x[:8].cpu(), recon], 0)
+        error = (recon - truth + 1.0) / 2.0
+        stack = torch.cat([truth, recon, error], 0)
         writer.add_image(
-            'reconstruction', common.combine_imgs(recon, 2, 8)[None], epoch
+            'reconstruction', common.combine_imgs(stack, 3, 8)[None], epoch
         )
 
     def _decode(self, x):
