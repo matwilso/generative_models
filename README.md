@@ -3,7 +3,7 @@
 **[Motivation](#motivation) | [Autoregressive models 📃](#autoregressive-models) | [VAEs 🪞](#variational-autoencoders-vaes) | [GANs 🧑‍🎨/🕵](#generative-adversarial-networks-gans) | [Diffusion models 🧪](#diffusion-models)**
 
 The goal of this repo is to provide implementations of the important fundamental approaches to generative modeling, with explanations and code that are as simple as possible to understand (in pytorch).
-Most models are expressed within about 100 lines of code, including network architecture definitions---except for diffusion models, which get a bit messy 😅.
+Most models are expressed within about 100 lines of code, including network architecture definitions---except for diffusion models, which get a bit messy.
 As such, they do not contain all SOTA architectures or other tricks.
 
 There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
