@@ -4,8 +4,23 @@ Ho et al. diffusion models codebase:
 https://github.com/hojonathanho/diffusion/blob/1e0dceb3b3495bbe19116a5e1b3596cd0706c543/diffusion_tf/utils.py
 """
 
+import math
+
 import numpy as np
 import torch
+
+
+class Extractable:
+    """Class to enable extracting values from a 1-D numpy array for a batch of indices. Wrap your array in this, then it enables easy time indexing."""
+
+    def __init__(self, arr):
+        self.arr = arr
+
+    def __getitem__(self, t):
+        res = torch.from_numpy(self.arr).to(device=t.device)[t].float()
+        return res[
+            :, None, None, None
+        ]  # reshape (BS,) --> (BS, C=1, H=1, W=1) to make image size
 
 
 def mean_flat(tensor):
@@ -81,3 +96,30 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
     )
     assert log_probs.shape == x.shape
     return log_probs
+
+
+"""
+so basically, beta defines the variance and we want some function that maps from timestamps to variances (betas).
+in this case, we are going to use a cosine function which provides a nicer transition
+"""
+
+
+def get_cosine_beta_schedule(num_diffusion_timesteps):
+    """
+    Create a beta schedule that discretizes the given alpha_t_bar function,
+    which defines the cumulative product of (1-beta) over time from t = [0,1].
+
+    :param num_diffusion_timesteps: the number of betas to produce.
+    """
+    MAX_BETA = 0.999
+
+    def alpha_bar(t):
+        return math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2
+
+    betas = []
+    for i in range(num_diffusion_timesteps):
+        t1 = i / num_diffusion_timesteps
+        t2 = (i + 1) / num_diffusion_timesteps
+        betas.append(min(1 - alpha_bar(t2) / alpha_bar(t1), MAX_BETA))
+
+    return np.array(betas)

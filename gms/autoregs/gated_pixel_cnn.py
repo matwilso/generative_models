@@ -3,7 +3,7 @@ from torch import distributions as tdib
 from torch import nn
 
 from gms import common
-from gms.autoregs.pixelcnn import LayerNorm, MaskConv2d, PixelCNN
+from gms.autoregs.pixel_cnn import LayerNorm, MaskConv2d, PixelCNN
 
 
 # GatedPixelCNN using horizontal and vertical stacks to fix blind-spot

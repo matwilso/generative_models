@@ -9,7 +9,7 @@ from gms import common
 # This transformer code is taken from https://github.com/karpathy/minGPT and then modified.
 
 
-class TransformerCNN(common.Autoreg):
+class PixelTransformer(common.Autoreg):
     DG = common.AttrDict()
     DG.n_layer = 2
     DG.n_head = 4
