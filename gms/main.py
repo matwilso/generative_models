@@ -43,7 +43,7 @@ def train(model, train_ds, test_ds, G):
             # TODO: see if we can just use loss and write the gan such that it works.
             metrics = model.train_step(batch[0])
             for key in metrics:
-                logger[key] += [metrics[key].detach().cpu()]
+                logger[f'{G.model}/train/{key}'] += [metrics[key].detach().cpu()]
         logger['dt/train'] = time.time() - train_time
         # TEST
         model.eval()
@@ -56,7 +56,9 @@ def train(model, train_ds, test_ds, G):
                     ), test_batch[1].to(G.device)
                     test_loss, test_metrics = model.loss(test_batch[0])
                     for key in test_metrics:
-                        logger['test/' + key] += [test_metrics[key].detach().cpu()]
+                        logger[f'{G.model}/test/{key}'] += [
+                            test_metrics[key].detach().cpu()
+                        ]
             else:
                 test_batch = next(iter(test_ds))
                 test_batch[0], test_batch[1] = test_batch[0].to(G.device), test_batch[
@@ -80,12 +82,15 @@ def train(model, train_ds, test_ds, G):
             break
 
 
+@torch.inference_mode()
 def eval(model, train_ds, test_ds, G):
     assert G.arbiter_dir != Path('.'), "need to pass in arbiter dir"
     assert G.weights_from != Path('.'), "need to pass in a model ckpt to eval on"
     assert G.bs == 500, "do bs 500"
     arbiter = torch.jit.load(G.arbiter_dir / 'arbiter.pt').to(G.device)
-    model.load_state_dict(torch.load(G.weights_from, map_location=G.device))
+    model.load_state_dict(
+        torch.load(G.weights_from / 'model.pt', map_location=G.device)
+    )
     model.to(G.device)
     fid_buffer = FID(num_features=64, feature_extractor=arbiter, device=G.device)
 
@@ -94,18 +99,17 @@ def eval(model, train_ds, test_ds, G):
     all_z_sample = []
     all_z_real = []
 
-    with torch.no_grad():
-        for i, test_batch in enumerate(test_ds):
-            test_batch[0], test_batch[1] = test_batch[0].to(G.device), test_batch[1].to(
-                G.device
-            )
-            samp = model.sample(test_batch[0].shape[0])
-            fid_buffer.update((samp, test_batch[0]))
-            z_samp = arbiter(samp)
-            z_real = arbiter(test_batch[0])
-            all_z_real.append(z_real)
-            all_z_sample.append(z_samp)
-            break
+    for test_batch in test_ds:
+        test_batch[0], test_batch[1] = test_batch[0].to(G.device), test_batch[1].to(
+            G.device
+        )
+        samp = model.sample(test_batch[0].shape[0])
+        fid_buffer.update((samp, test_batch[0]))
+        z_samp = arbiter(samp)
+        z_real = arbiter(test_batch[0])
+        all_z_real.append(z_real)
+        all_z_sample.append(z_samp)
+        break
     # run the model specific evaluate function. usually draws samples and creates other relevant visualizations.
     fid_buff_out = fid_buffer.compute()
     print(f"{fid_buff_out = }")
