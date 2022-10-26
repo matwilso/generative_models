@@ -11,3 +11,6 @@ format-check:
 format:
 	black -S .
 	isort --profile black .
+
+test-run-models:
+	 python -m pytest -v -x -s
