@@ -3,6 +3,7 @@ code forked from here: https://github.com/openai/guided-diffusion/blob/main/guid
 """
 import numpy as np
 import torch
+import torch.functional as F
 
 from gms.diffusion.utils import (
     Extractable,
@@ -11,6 +12,18 @@ from gms.diffusion.utils import (
     mean_flat,
     normal_kl,
 )
+
+# the usage of logsnr is quite nice actually. makes the equations simpler
+
+
+def diffusion_forward(*, x, logsnr):
+    """q(z_t | x)."""
+    return {
+        'mean': x * torch.sqrt(F.sigmoid(logsnr)),
+        'std': torch.sqrt(F.sigmoid(-logsnr)),
+        'var': F.sigmoid(-logsnr),
+        'logvar': F.logsigmoid(-logsnr),
+    }
 
 
 class GaussianDiffusion:

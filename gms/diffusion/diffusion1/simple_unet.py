@@ -8,9 +8,6 @@ from torch import nn
 
 """
 This is a shorter and simpler Unet, designed to work on MNIST.
-
-It performs slightly worse than the one from Ho/Nichol+Dhariwal.
-This is likely due to fewer layers and not using attention.
 """
 
 
