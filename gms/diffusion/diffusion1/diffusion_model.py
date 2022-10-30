@@ -4,8 +4,8 @@ import torch
 from torch.optim import Adam
 
 from gms import common
-from gms.diffusion import gaussian_diffusion as gd
-from gms.diffusion.simple_unet import SimpleUnet
+from gms.diffusion.diffusion1 import gaussian_diffusion as gd
+from gms.diffusion.diffusion1.simple_unet import SimpleUnet
 
 
 class DiffusionModel(common.GM):

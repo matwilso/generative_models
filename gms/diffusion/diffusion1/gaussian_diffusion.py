@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.functional as F
 
-from gms.diffusion.utils import (
+from gms.diffusion.diffusion1.utils import (
     Extractable,
     discretized_gaussian_log_likelihood,
     get_cosine_beta_schedule,

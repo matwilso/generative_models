@@ -44,6 +44,7 @@ def train(model, train_ds, test_ds, G):
             metrics = model.train_step(batch[0])
             for key in metrics:
                 logger[f'{G.model}/train/{key}'] += [metrics[key].detach().cpu()]
+
         logger['dt/train'] = time.time() - train_time
         # TEST
         model.eval()
