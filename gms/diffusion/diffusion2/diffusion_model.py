@@ -4,6 +4,11 @@ import torch
 from torch.optim import Adam
 
 from gms import common
+from gms.diffusion.diffusion2.simple_unet import SimpleUnet
+from gms.diffusion.diffusion2.diffusion_handler import DiffusionHandler
+
+from einops import rearrange
+
 
 class VDiffusionModel(common.GM):
     DG = common.AttrDict()  # default G
@@ -15,8 +20,8 @@ class VDiffusionModel(common.GM):
     def __init__(self, G):
         super().__init__(G)
         self.net = SimpleUnet(G)
+        self.diffusion_handler = DiffusionHandler(mean_type='v', num_steps=G.timesteps)
 
-        self.diffusion = gd.GaussianDiffusion(G.timesteps)
         self.optimizer = Adam(self.parameters(), lr=G.lr)
         if G.pad32:
             self.size = 32
@@ -31,17 +36,14 @@ class VDiffusionModel(common.GM):
         return metrics
 
     def loss(self, x):
-        t = torch.randint(0, self.G.timesteps, (x.shape[0],)).to(x.device)
-        metrics = self.diffusion.training_losses(self.net, x, t)
+        metrics = self.diffusion_handler.training_losses(net=self.net, x=x)
         metrics = {key: val.mean() for key, val in metrics.items()}
         loss = metrics['loss']
         return loss, metrics
 
     def sample(self, n):
         noise = torch.randn((n, 1, self.size, self.size), device=self.G.device)
-        samples = self.diffusion.p_sample(
-            self.net, (n, 1, self.size, self.size), noise=noise
-        )
+        samples = self.diffusion_handler.sample(net=self.net, init_x=noise)
         return samples[-1]['sample']
 
     def evaluate(self, writer, x, epoch):
@@ -54,30 +56,19 @@ class VDiffusionModel(common.GM):
 
         torch.manual_seed(0)
         noise = torch.randn((25, 1, self.size, self.size), device=x.device)
-        all_samples = self.diffusion.p_sample(
-            self.net, (25, 1, self.size, self.size), noise=noise
+        preds = self.diffusion_handler.sample(net=self.net, init_x=noise)
+        preds = proc(preds)
+        sample = preds[-1]
+        # convert to a 5x5 grid for sample
+        writer.add_image(
+            'samples',
+            rearrange(sample, '(n1 n2) c h w -> c (n1 h) (n2 w)', n1=5, n2=5),
+            epoch,
         )
-        samples, preds = [], []
-        for s in all_samples:
-            samples += [proc(s['sample'])]
-            preds += [proc(s['pred_xstart'])]
-
-        sample = samples[-1]
-        writer.add_image('samples', common.combine_imgs(sample, 5, 5)[None], epoch)
-
-        gs = torch.stack(samples)
-        gp = torch.stack(preds)
+        # and for video as well
         writer.add_video(
             'sampling_process',
-            common.combine_imgs(gs.permute(1, 0, 2, 3, 4), 5, 5)[None, :, None],
-            epoch,
-            fps=60,
-        )
-        # at any point, we can guess at the true value of x_0 based on our current noise
-        # this produces a nice visualization
-        writer.add_video(
-            'pred_xstart',
-            common.combine_imgs(gp.permute(1, 0, 2, 3, 4), 5, 5)[None, :, None],
+            rearrange(preds, 't (n1 n2) c h w -> t c (n1 h) (n2 w)', n1=5, n2=5)[None],
             epoch,
             fps=60,
         )

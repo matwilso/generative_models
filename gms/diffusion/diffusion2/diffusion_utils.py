@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 import torch
-import torch.functional as F
+import torch.nn.functional as F
 
 
 def get_timestep_embedding(timesteps, embedding_dim,
@@ -22,23 +22,6 @@ def get_timestep_embedding(timesteps, embedding_dim,
   assert emb.shape == (timesteps.shape[0], embedding_dim)
   return emb
 
-
-def get_w_embedding(w, embedding_dim,
-                    max_time=1000., dtype=torch.float32):
-  """Get w embedding."""
-  assert len(w.shape) == 1  # and timesteps.dtype == tf.int32
-  w *= (1000. / max_time)
-
-  half_dim = embedding_dim // 2
-  emb = np.log(10000) / (half_dim - 1)
-  emb = torch.exp(torch.arange(half_dim, dtype=dtype) * -emb)
-  emb = w.astype(dtype)[:, None] * emb[None, :]
-  emb = torch.concatenate([torch.sin(emb), torch.cos(emb)], axis=1)
-  if embedding_dim % 2 == 1:  # zero pad
-    emb = torch.pad(emb, dtype(0), ((0, 0, 0), (0, 1, 0)))
-  assert emb.shape == (w.shape[0], embedding_dim)
-  return emb
-
 def nearest_neighbor_upsample(x):
   B, H, W, C = x.shape  # pylint: disable=invalid-name
   x = x.reshape(B, H, 1, W, 1, C)
@@ -48,43 +31,43 @@ def nearest_neighbor_upsample(x):
 
 def diffusion_reverse(*, x, z_t, logsnr_s, logsnr_t, x_logvar):
     """q(z_s | z_t, x) (requires logsnr_s > logsnr_t (i.e. s < t))."""
-    alpha_st = F.sqrt((1.0 + F.exp(-logsnr_t)) / (1.0 + F.exp(-logsnr_s)))
-    alpha_s = F.sqrt(F.sigmoid(logsnr_s))
-    r = F.exp(logsnr_t - logsnr_s)  # SNR(t)/SNR(s)
-    one_minus_r = -F.expm1(logsnr_t - logsnr_s)  # 1-SNR(t)/SNR(s)
+    alpha_st = torch.sqrt((1.0 + torch.exp(-logsnr_t)) / (1.0 + torch.exp(-logsnr_s)))
+    alpha_s = torch.sqrt(torch.sigmoid(logsnr_s))
+    r = torch.exp(logsnr_t - logsnr_s)  # SNR(t)/SNR(s)
+    one_minus_r = -torch.expm1(logsnr_t - logsnr_s)  # 1-SNR(t)/SNR(s)
     log_one_minus_r = log1mexp(logsnr_s - logsnr_t)  # log(1-SNR(t)/SNR(s))
 
     mean = r * alpha_st * z_t + one_minus_r * alpha_s * x
 
     if x_logvar == 'small':
         # same as setting x_logvar to -infinity
-        var = one_minus_r * F.sigmoid(-logsnr_s)
-        logvar = log_one_minus_r + F.log_sigmoid(-logsnr_s)
+        var = one_minus_r * torch.sigmoid(-logsnr_s)
+        logvar = log_one_minus_r + F.logsigmoid(-logsnr_s)
     elif x_logvar == 'large':
-        # same as setting x_logvar to F.log_sigmoid(-logsnr_t)
-        var = one_minus_r * F.sigmoid(-logsnr_t)
-        logvar = log_one_minus_r + F.log_sigmoid(-logsnr_t)
+        # same as setting x_logvar to F.logsigmoid(-logsnr_t)
+        var = one_minus_r * torch.sigmoid(-logsnr_t)
+        logvar = log_one_minus_r + F.logsigmoid(-logsnr_t)
     elif x_logvar.startswith('medium:'):
         _, frac = x_logvar.split(':')
         frac = float(frac)
         assert 0 <= frac <= 1
-        min_logvar = log_one_minus_r + F.log_sigmoid(-logsnr_s)
-        max_logvar = log_one_minus_r + F.log_sigmoid(-logsnr_t)
+        min_logvar = log_one_minus_r + F.logsigmoid(-logsnr_s)
+        max_logvar = log_one_minus_r + F.logsigmoid(-logsnr_t)
         logvar = frac * max_logvar + (1 - frac) * min_logvar
-        var = F.exp(logvar)
+        var = torch.exp(logvar)
     else:
         raise NotImplementedError(x_logvar)
-    return {'mean': mean, 'std': F.sqrt(var), 'var': var, 'logvar': logvar}
+    return {'mean': mean, 'std': torch.sqrt(var), 'var': var, 'logvar': logvar}
 
 
 def diffusion_forward(*, x, logsnr):
     """q(z_t | x)."""
     assert x.shape == logsnr.shape
     return {
-        'mean': x * F.sqrt(F.sigmoid(logsnr)),
-        'std': F.sqrt(F.sigmoid(-logsnr)),
-        'var': F.sigmoid(-logsnr),
-        'logvar': F.log_sigmoid(-logsnr),
+        'mean': x * torch.sqrt(torch.sigmoid(logsnr)),
+        'std': torch.sqrt(torch.sigmoid(-logsnr)),
+        'var': torch.sigmoid(-logsnr),
+        'logvar': F.logsigmoid(-logsnr),
     }
 
 
@@ -92,27 +75,27 @@ def predict_x_from_eps(*, z, eps, logsnr):
     """x = (z - sigma*eps)/alpha."""
     logsnr = broadcast_from_left(logsnr, z.shape)
     assert z.shape == eps.shape == logsnr.shape
-    return F.sqrt(1.0 + F.exp(-logsnr)) * (z - eps * torch.rsqrt(1.0 + F.exp(logsnr)))
+    return torch.sqrt(1.0 + torch.exp(-logsnr)) * (z - eps * torch.rsqrt(1.0 + torch.exp(logsnr)))
 
 
 def predict_eps_from_x(*, z, x, logsnr):
     """eps = (z - alpha*x)/sigma."""
     logsnr = broadcast_from_left(logsnr, z.shape)
     assert z.shape == x.shape == logsnr.shape
-    return F.sqrt(1.0 + F.exp(logsnr)) * (z - x * torch.rsqrt(1.0 + F.exp(-logsnr)))
+    return torch.sqrt(1.0 + torch.exp(logsnr)) * (z - x * torch.rsqrt(1.0 + torch.exp(-logsnr)))
 
 
 def predict_v_from_x_and_eps(*, x, eps, logsnr):
     logsnr = broadcast_from_left(logsnr, x.shape)
-    alpha_t = F.sqrt(F.sigmoid(logsnr))
-    sigma_t = F.sqrt(F.sigmoid(-logsnr))
+    alpha_t = torch.sqrt(torch.sigmoid(logsnr))
+    sigma_t = torch.sqrt(torch.sigmoid(-logsnr))
     return alpha_t * eps - sigma_t * x
 
 
 def predict_x_from_v(*, z, v, logsnr):
     logsnr = broadcast_from_left(logsnr, z.shape)
-    alpha_t = F.sqrt(F.sigmoid(logsnr))
-    sigma_t = F.sqrt(F.sigmoid(-logsnr))
+    alpha_t = torch.sqrt(torch.sigmoid(logsnr))
+    sigma_t = torch.sqrt(torch.sigmoid(-logsnr))
     return alpha_t * z - sigma_t * v
 
 
@@ -120,7 +103,7 @@ def log1mexp(x, expm1_guard=1e-7):
     # See https://cran.r-project.org/package=Rmpfr/.../log1mexp-note.pdf
     t = x < math.log(0.5)
     y = torch.zeros_like(x)
-    y[t] = torch.log1p(-x[t].exp())
+    y[t] = F.log1p(-x[t].exp())
 
     # for x close to 0 we need expm1 for numerically stable computation
     # we furtmermore modify the backward pass to avoid instable gradients,
@@ -137,7 +120,7 @@ def log1mexp(x, expm1_guard=1e-7):
 #    # Computes log(1-exp(-|x|))
 #    # See https://cran.r-project.org/web/packages/Rmpfr/vignettes/log1mexp-note.pdf
 #    x = -x.abs()
-#    return torch.where(x > -0.693, torch.log(-torch.expm1(x)), torch.log1p(-torch.exp(x)))
+#    return torch.where(x > -0.693, F.log(-torch.expm1(x)), F.log1p(-torch.exp(x)))
 
 
 def broadcast_from_left(x, shape):

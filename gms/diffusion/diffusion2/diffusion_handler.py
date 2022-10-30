@@ -1,9 +1,9 @@
 import torch
-import torch.functional as F
-from diffusion_utils import (
+from gms.diffusion.diffusion2.diffusion_utils import (
     broadcast_from_left,
     diffusion_forward,
     diffusion_reverse,
+    get_logsnr_schedule,
     mean_flat,
     normal_kl,
     predict_eps_from_x,
@@ -15,10 +15,14 @@ import numpy as np
 
 
 class DiffusionHandler:
-    def __init__(self, *, mean_type, logvar_coeff, distillation_target=None):
+    def __init__(self, *, mean_type, num_steps, distillation_target=None):
         self.mean_type = mean_type
-        self.logvar_coeff = logvar_coeff
+        self.num_steps = num_steps
         self.distillation_target = distillation_target
+        self.logsnr_schedule_fn = get_logsnr_schedule(
+            'cosine', logsnr_min=-20.0, logsnr_max=20.0
+        )
+        self.sampler = 'ddim'
 
     def _run_model(self, *, net, z, logsnr):
         """
@@ -109,21 +113,23 @@ class DiffusionHandler:
         )
         return mean_flat(kl) / np.log(2.0)
 
-    def training_losses( self, *, net, x, rng, logsnr_schedule_fn, num_steps):
+    def training_losses(self, *, net, x):
         assert x.dtype in [torch.float32, torch.float64]
-        assert isinstance(num_steps, int)
         eps = torch.randn(x.shape, device=x.device, dtype=x.dtype)
         bc = lambda z: broadcast_from_left(z, x.shape)
 
         # sample logsnr
-        if num_steps > 0:
-            assert num_steps >= 1
-            i = torch.randint(shape=(x.shape[0],), minval=0, maxval=num_steps)
-            u = (i + 1).astype(x.dtype) / num_steps
+        if self.distillation_target is not None:
+            # use discrete for distillation
+            assert self.num_steps >= 1
+            i = torch.randint(
+                size=(x.shape[0],), minval=0, maxval=self.num_steps, device=x.device
+            )
+            u = (i + 1).astype(x.dtype) / self.num_steps
         else:
             # continuous time
-            u = torch.rand(shape=(x.shape[0],), dtype=x.dtype)
-        logsnr = logsnr_schedule_fn(u)
+            u = torch.rand(size=(x.shape[0],), dtype=x.dtype, device=x.device)
+        logsnr = self.logsnr_schedule_fn(u)
         assert logsnr.shape == (x.shape[0],)
 
         # sample z ~ q(z_logsnr | x)
@@ -132,8 +138,6 @@ class DiffusionHandler:
 
         # get denoising target
         if self.distillation_target is not None:  # distillation
-            assert num_steps >= 1
-
             # two forward steps of DDIM from z_t using teacher
             teach_out_start = self._run_model(
                 net=self.distillation_target, z=z, logsnr=logsnr
@@ -141,8 +145,8 @@ class DiffusionHandler:
             x_pred = teach_out_start['model_x']
             eps_pred = teach_out_start['model_eps']
 
-            u_mid = u - 0.5 / num_steps
-            logsnr_mid = logsnr_schedule_fn(u_mid)
+            u_mid = u - 0.5 / self.num_steps
+            logsnr_mid = self.logsnr_schedule_fn(u_mid)
             stdv_mid = bc(torch.sqrt(torch.sigmoid(-logsnr_mid)))
             a_mid = bc(torch.sqrt(torch.sigmoid(logsnr_mid)))
             z_mid = a_mid * x_pred + stdv_mid * eps_pred
@@ -155,8 +159,8 @@ class DiffusionHandler:
             x_pred = teach_out_mid['model_x']
             eps_pred = teach_out_mid['model_eps']
 
-            u_s = u - 1.0 / num_steps
-            logsnr_s = logsnr_schedule_fn(u_s)
+            u_s = u - 1.0 / self.num_steps
+            logsnr_s = self.logsnr_schedule_fn(u_s)
             stdv_s = bc(torch.sqrt(torch.sigmoid(-logsnr_s)))
             a_s = bc(torch.sqrt(torch.sigmoid(logsnr_s)))
             z_teacher = a_s * x_pred + stdv_s * eps_pred
@@ -177,8 +181,7 @@ class DiffusionHandler:
         # denoising loss
         model_output = self._run_model(net=net, z=z, logsnr=logsnr)
 
-
-        # so for the actual loss, no matter what the model predicts, we are going to 
+        # so for the actual loss, no matter what the model predicts, we are going to
         # you could also get the target for v, but this is what they tend to use in their codebase
 
         x_mse = mean_flat(torch.square(model_output['model_x'] - x_target))
@@ -188,14 +191,14 @@ class DiffusionHandler:
         loss = torch.maximum(x_mse, eps_mse)
         return {'loss': loss}
 
-    def ddim_step(self, net, i, z_t, num_steps, logsnr_schedule_fn):
+    def ddim_step(self, net, i, z_t):
         shape, dtype = z_t.shape, z_t.dtype
-        logsnr_t = logsnr_schedule_fn((i + 1.0).astype(dtype) / num_steps)
-        logsnr_s = logsnr_schedule_fn(i.astype(dtype) / num_steps)
+        logsnr_t = self.logsnr_schedule_fn((i + 1.0) / self.num_steps)
+        logsnr_s = self.logsnr_schedule_fn(i / self.num_steps)
         model_out = self._run_model(
             net=net,
             z=z_t,
-            logsnr=torch.full((shape[0],), logsnr_t),
+            logsnr=torch.full((shape[0],), logsnr_t, device=z_t.device),
         )
         x_pred_t = model_out['model_x']
         eps_pred_t = model_out['model_eps']
@@ -204,55 +207,47 @@ class DiffusionHandler:
         z_s_pred = alpha_s * x_pred_t + stdv_s * eps_pred_t
         return torch.where(i == 0, x_pred_t, z_s_pred)
 
-    def bwd_dif_step(self, rng, i, z_t, num_steps, logsnr_schedule_fn):
+    def reverse_dpm_step(self, net, i, z_t):
         shape, dtype = z_t.shape, z_t.dtype
-        logsnr_t = logsnr_schedule_fn((i + 1.0).astype(dtype) / num_steps)
-        logsnr_s = logsnr_schedule_fn(i.astype(dtype) / num_steps)
+        logsnr_t = self.logsnr_schedule_fn((i + 1.0).astype(dtype) / self.num_steps)
+        logsnr_s = self.logsnr_schedule_fn(i.astype(dtype) / self.num_steps)
         z_s_dist = self.predict(
             net=net,
             z_t=z_t,
             logsnr_t=torch.full((shape[0],), logsnr_t),
             logsnr_s=torch.full((shape[0],), logsnr_s),
         )
-        eps = jax.random.normal(jax.random.fold_in(rng, i), shape=shape, dtype=dtype)
+        eps = torch.randn(size=shape, dtype=dtype)
         return torch.where(
             i == 0, z_s_dist['pred_x'], z_s_dist['mean'] + z_s_dist['std'] * eps
         )
 
-    def sample_loop(
+    def sample(
         self,
         *,
         net,
-        rng,
         init_x,
-        num_steps,
-        logsnr_schedule_fn,
-        sampler,
     ):
-        if sampler == 'ddim':
+        if self.sampler == 'ddim':
             body_fun = lambda i, z_t: self.ddim_step(
                 net,
                 i,
                 z_t,
-                num_steps,
-                logsnr_schedule_fn,
             )
-        elif sampler == 'noisy':
-            body_fun = lambda i, z_t: self.bwd_dif_step(
+        elif self.sampler == 'noisy':
+            body_fun = lambda i, z_t: self.reverse_dpm_step(
                 net,
-                rng,
                 i,
                 z_t,
-                num_steps,
-                logsnr_schedule_fn,
             )
         else:
-            raise NotImplementedError(sampler)
+            raise NotImplementedError(self.sampler)
 
         # loop over t = num_steps-1, ..., 0
-        final_x = reverse_fori_loop(
-            lower=0, upper=num_steps, body_fun=body_fun, init_val=init_x
-        )
-
-        assert final_x.shape == init_x.shape and final_x.dtype == init_x.dtype
-        return final_x
+        outs = []
+        z_t = init_x
+        for i in range(0, self.num_steps)[::-1]:
+            torch_i = torch.tensor(i, device=init_x.device)
+            z_t = body_fun(torch_i, z_t)
+            outs.append(z_t)
+        return torch.stack(outs)
