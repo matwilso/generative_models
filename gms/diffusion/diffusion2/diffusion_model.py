@@ -1,13 +1,12 @@
 import random
 
 import torch
+from einops import rearrange, repeat
 from torch.optim import Adam
 
 from gms import common
-from gms.diffusion.diffusion2.simple_unet import SimpleUnet
 from gms.diffusion.diffusion2.diffusion_handler import DiffusionHandler
-
-from einops import rearrange
+from gms.diffusion.diffusion2.simple_unet import SimpleUnet
 
 
 class VDiffusionModel(common.GM):
@@ -16,11 +15,14 @@ class VDiffusionModel(common.GM):
     DG.timesteps = 500  # seems to work pretty well for MNIST
     DG.hidden_size = 128
     DG.dropout = 0.0
+    DG.sampler = 'ddim'
 
     def __init__(self, G):
         super().__init__(G)
         self.net = SimpleUnet(G)
-        self.diffusion_handler = DiffusionHandler(mean_type='v', num_steps=G.timesteps)
+        self.diffusion_handler = DiffusionHandler(
+            mean_type='v', num_steps=G.timesteps, sampler=G.sampler
+        )
 
         self.optimizer = Adam(self.parameters(), lr=G.lr)
         if G.pad32:
@@ -44,7 +46,7 @@ class VDiffusionModel(common.GM):
     def sample(self, n):
         noise = torch.randn((n, 1, self.size, self.size), device=self.G.device)
         samples = self.diffusion_handler.sample(net=self.net, init_x=noise)
-        return samples[-1]['sample']
+        return samples[-1]
 
     def evaluate(self, writer, x, epoch):
         # draw samples and visualize the sampling process
@@ -56,6 +58,7 @@ class VDiffusionModel(common.GM):
 
         torch.manual_seed(0)
         noise = torch.randn((25, 1, self.size, self.size), device=x.device)
+
         preds = self.diffusion_handler.sample(net=self.net, init_x=noise)
         preds = proc(preds)
         sample = preds[-1]
@@ -66,9 +69,11 @@ class VDiffusionModel(common.GM):
             epoch,
         )
         # and for video as well
+        vid = rearrange(preds, 't (n1 n2) c h w -> t c (n1 h) (n2 w)', n1=5, n2=5)[None]
+        vid = repeat(vid, 'b t c h w -> b t (repeat c) h w', repeat=3)
         writer.add_video(
             'sampling_process',
-            rearrange(preds, 't (n1 n2) c h w -> t c (n1 h) (n2 w)', n1=5, n2=5)[None],
+            vid,
             epoch,
             fps=60,
         )

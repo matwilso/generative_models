@@ -5,6 +5,7 @@ from itertools import count
 from pathlib import Path
 
 import torch
+import yaml
 from ignite.metrics import FID
 from torch.utils.tensorboard import SummaryWriter
 
@@ -12,22 +13,24 @@ from gms import common
 
 # TRAINING SCRIPT
 
-G = common.AttrDict()
-G.model = 'vae'
-G.bs = 64
-G.hidden_size = 256
-G.device = 'cuda'
-G.num_epochs = 50
-G.save_n = 100
-G.logdir = Path('./logs/')
-G.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
-G.lr = 3e-4
-G.class_cond = 0
-G.binarize = 1
-G.pad32 = 0
-G.mode = 'train'
-G.weights_from = Path('.')
-G.arbiter_dir = Path('.')
+# cmd line args with their default values
+CFG = common.AttrDict()
+CFG.model = 'vae'
+CFG.bs = 64
+CFG.hidden_size = 256
+CFG.device = 'cuda'
+CFG.epochs = 50
+CFG.save_n = 1
+CFG.logdir = Path('./logs/')
+CFG.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
+CFG.lr = 3e-4
+CFG.class_cond = 0
+CFG.binarize = 1
+CFG.pad32 = 0
+CFG.mode = 'train'
+CFG.weights_from = Path('.')
+CFG.arbiter_dir = Path('.')
+CFG.debug_eval = 0
 
 
 def train(model, train_ds, test_ds, G):
@@ -35,7 +38,7 @@ def train(model, train_ds, test_ds, G):
     logger = common.dump_logger({}, writer, 0, G)
 
     # TRAINING LOOP
-    for epoch in count():
+    for epoch in count(1):
         # TRAIN
         train_time = time.time()
         for batch in train_ds:
@@ -44,6 +47,8 @@ def train(model, train_ds, test_ds, G):
             metrics = model.train_step(batch[0])
             for key in metrics:
                 logger[f'{G.model}/train/{key}'] += [metrics[key].detach().cpu()]
+            if G.debug_eval:
+                break
 
         logger['dt/train'] = time.time() - train_time
         # TEST
@@ -71,7 +76,7 @@ def train(model, train_ds, test_ds, G):
             logger['dt/evaluate'] = time.time() - eval_time
         model.train()
         # LOGGING
-        logger['num_vars'] = num_vars
+        logger['num_vars'] = common.count_vars(model)
         logger = common.dump_logger(logger, writer, epoch, G)
         if epoch % G.save_n == 0:
             path = G.logdir / 'model.pt'
@@ -79,20 +84,17 @@ def train(model, train_ds, test_ds, G):
             torch.save(model.state_dict(), path)
             if G.model == 'arbiter':
                 model.save(G.logdir, batch[0])
-        if epoch >= G.num_epochs:
+        if epoch >= G.epochs:
             break
 
 
 @torch.inference_mode()
 def eval(model, train_ds, test_ds, G):
     assert G.arbiter_dir != Path('.'), "need to pass in arbiter dir"
-    assert G.weights_from != Path('.'), "need to pass in a model ckpt to eval on"
-    assert G.bs == 500, "do bs 500"
     arbiter = torch.jit.load(G.arbiter_dir / 'arbiter.pt').to(G.device)
-    model.load_state_dict(
-        torch.load(G.weights_from / 'model.pt', map_location=G.device)
-    )
-    model.to(G.device)
+    if G.bs != 500:
+        print("WARNING: YOU SHOULD USE A BS OF 500 FOR EVAL")
+        # assert G.bs == 500, "do bs 500"
     fid_buffer = FID(num_features=64, feature_extractor=arbiter, device=G.device)
 
     # TEST
@@ -123,10 +125,10 @@ def eval(model, train_ds, test_ds, G):
     print(f"{fid = } {precision = } {recall = } {f1 = }")
 
 
-if __name__ == '__main__':
+def load_model_and_data():
     # PARSE CMD LINE
     parser = argparse.ArgumentParser()
-    for key, value in G.items():
+    for key, value in CFG.items():
         parser.add_argument(f'--{key}', type=common.args_type(value), default=value)
     tempG, _ = parser.parse_known_args()
     # SETUP
@@ -136,14 +138,32 @@ if __name__ == '__main__':
         defaults[key] = value
         if key not in tempG:
             parser.add_argument(f'--{key}', type=type(value), default=value)
+
+    if CFG.weights_from != Path('.'):
+        loaded_hp_file = CFG.weights_from / 'hps.yaml'
+        with open(loaded_hp_file) as f:
+            loadedG = yaml.safe_load(f)
+        for key, value in loadedG.items():
+            defaults[key] = value
+
     parser.set_defaults(**defaults)
     G = parser.parse_args()
     model = Model(G=G).to(G.device)
+    if G.weights_from != Path('.'):
+        model.load_state_dict(
+            torch.load(G.weights_from / 'model.pt', map_location=G.device)
+        )
     train_ds, test_ds = common.load_mnist(G.bs, binarize=G.binarize, pad32=G.pad32)
-    num_vars = common.count_vars(model)
-    print('num_vars', num_vars)
+    print('num_vars', common.count_vars(model))
 
+    return model, train_ds, test_ds, G
+
+
+if __name__ == '__main__':
+    model, train_ds, test_ds, G = load_model_and_data()
     if G.mode == 'train':
         train(model, train_ds, test_ds, G)
-    else:
+    elif G.mode == 'eval':
         eval(model, train_ds, test_ds, G)
+    else:
+        raise Exception("unknown mode")

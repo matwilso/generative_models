@@ -6,27 +6,29 @@ import torch
 import torch.nn.functional as F
 
 
-def get_timestep_embedding(timesteps, embedding_dim,
-                           max_time=1000., dtype=torch.float32):
-  """Get timestep embedding."""
-  assert len(timesteps.shape) == 1  # and timesteps.dtype == tf.int32
-  timesteps *= (1000. / max_time)
+def get_timestep_embedding(
+    timesteps, embedding_dim, max_time=1000.0, dtype=torch.float32
+):
+    """Get timestep embedding."""
+    assert len(timesteps.shape) == 1  # and timesteps.dtype == tf.int32
+    timesteps *= 1000.0 / max_time
 
-  half_dim = embedding_dim // 2
-  emb = np.log(10000) / (half_dim - 1)
-  emb = torch.exp(torch.arange(half_dim, dtype=dtype) * -emb)
-  emb = timesteps.astype(dtype)[:, None] * emb[None, :]
-  emb = torch.concatenate([torch.sin(emb), torch.cos(emb)], axis=1)
-  if embedding_dim % 2 == 1:  # zero pad
-    emb = torch.pad(emb, dtype(0), ((0, 0, 0), (0, 1, 0)))
-  assert emb.shape == (timesteps.shape[0], embedding_dim)
-  return emb
+    half_dim = embedding_dim // 2
+    emb = np.log(10000) / (half_dim - 1)
+    emb = torch.exp(torch.arange(half_dim, dtype=dtype) * -emb)
+    emb = timesteps.astype(dtype)[:, None] * emb[None, :]
+    emb = torch.concatenate([torch.sin(emb), torch.cos(emb)], axis=1)
+    if embedding_dim % 2 == 1:  # zero pad
+        emb = torch.pad(emb, dtype(0), ((0, 0, 0), (0, 1, 0)))
+    assert emb.shape == (timesteps.shape[0], embedding_dim)
+    return emb
+
 
 def nearest_neighbor_upsample(x):
-  B, H, W, C = x.shape  # pylint: disable=invalid-name
-  x = x.reshape(B, H, 1, W, 1, C)
-  x = torch.broadcast_to(x, (B, H, 2, W, 2, C))
-  return x.reshape(B, H * 2, W * 2, C)
+    B, H, W, C = x.shape  # pylint: disable=invalid-name
+    x = x.reshape(B, H, 1, W, 1, C)
+    x = torch.broadcast_to(x, (B, H, 2, W, 2, C))
+    return x.reshape(B, H * 2, W * 2, C)
 
 
 def diffusion_reverse(*, x, z_t, logsnr_s, logsnr_t, x_logvar):
@@ -75,14 +77,18 @@ def predict_x_from_eps(*, z, eps, logsnr):
     """x = (z - sigma*eps)/alpha."""
     logsnr = broadcast_from_left(logsnr, z.shape)
     assert z.shape == eps.shape == logsnr.shape
-    return torch.sqrt(1.0 + torch.exp(-logsnr)) * (z - eps * torch.rsqrt(1.0 + torch.exp(logsnr)))
+    return torch.sqrt(1.0 + torch.exp(-logsnr)) * (
+        z - eps * torch.rsqrt(1.0 + torch.exp(logsnr))
+    )
 
 
 def predict_eps_from_x(*, z, x, logsnr):
     """eps = (z - alpha*x)/sigma."""
     logsnr = broadcast_from_left(logsnr, z.shape)
     assert z.shape == x.shape == logsnr.shape
-    return torch.sqrt(1.0 + torch.exp(logsnr)) * (z - x * torch.rsqrt(1.0 + torch.exp(-logsnr)))
+    return torch.sqrt(1.0 + torch.exp(logsnr)) * (
+        z - x * torch.rsqrt(1.0 + torch.exp(-logsnr))
+    )
 
 
 def predict_v_from_x_and_eps(*, x, eps, logsnr):
@@ -103,16 +109,16 @@ def log1mexp(x, expm1_guard=1e-7):
     # See https://cran.r-project.org/package=Rmpfr/.../log1mexp-note.pdf
     t = x < math.log(0.5)
     y = torch.zeros_like(x)
-    y[t] = F.log1p(-x[t].exp())
+    y[t] = torch.log1p(-x[t].exp())
 
     # for x close to 0 we need expm1 for numerically stable computation
     # we furtmermore modify the backward pass to avoid instable gradients,
     # ie situations where the incoming output gradient is close to 0 and the gradient of expm1 is very large
-    expxm1 = torch.expm1(x[1 - t])
+    expxm1 = torch.expm1(x[~t])
     log1mexp_fw = (-expxm1).log()
     log1mexp_bw = (-expxm1 + expm1_guard).log()  # limits magnitude of gradient
 
-    y[1 - t] = log1mexp_fw.detach() + (log1mexp_bw - log1mexp_bw.detach())
+    y[~t] = log1mexp_fw.detach() + (log1mexp_bw - log1mexp_bw.detach())
     return y
 
 
@@ -120,7 +126,7 @@ def log1mexp(x, expm1_guard=1e-7):
 #    # Computes log(1-exp(-|x|))
 #    # See https://cran.r-project.org/web/packages/Rmpfr/vignettes/log1mexp-note.pdf
 #    x = -x.abs()
-#    return torch.where(x > -0.693, F.log(-torch.expm1(x)), F.log1p(-torch.exp(x)))
+#    return torch.where(x > -0.693, F.log(-torch.expm1(x)), torch.log1p(-torch.exp(x)))
 
 
 def broadcast_from_left(x, shape):
@@ -235,4 +241,3 @@ def get_logsnr_schedule(name, **kwargs):
         'iddpm_cosine_respaced': _logsnr_schedule_iddpm_cosine_respaced,
     }
     return functools.partial(schedules[name], **kwargs)
-

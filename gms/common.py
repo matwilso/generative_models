@@ -83,7 +83,7 @@ def dump_logger(logger, writer, i, G):
         print(key, val)
     print(G.full_cmd)
     with open(Path(G.logdir) / 'hps.yaml', 'w') as f:
-        yaml.dump(G, f)
+        yaml.dump(G, f, width=float("inf"))
     print('=' * 30)
     writer.flush()
     return defaultdict(lambda: [])
