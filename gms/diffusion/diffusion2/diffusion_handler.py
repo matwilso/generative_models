@@ -1,4 +1,6 @@
+import numpy as np
 import torch
+
 from gms.diffusion.diffusion2.diffusion_utils import (
     broadcast_from_left,
     diffusion_forward,
@@ -11,18 +13,19 @@ from gms.diffusion.diffusion2.diffusion_utils import (
     predict_x_from_eps,
     predict_x_from_v,
 )
-import numpy as np
 
 
 class DiffusionHandler:
-    def __init__(self, *, mean_type, num_steps, distillation_target=None):
+    def __init__(
+        self, *, mean_type, num_steps, distillation_target=None, sampler='ddim'
+    ):
         self.mean_type = mean_type
         self.num_steps = num_steps
         self.distillation_target = distillation_target
         self.logsnr_schedule_fn = get_logsnr_schedule(
             'cosine', logsnr_min=-20.0, logsnr_max=20.0
         )
-        self.sampler = 'ddim'
+        self.sampler = sampler
 
     def _run_model(self, *, net, z, logsnr):
         """
@@ -198,7 +201,7 @@ class DiffusionHandler:
         model_out = self._run_model(
             net=net,
             z=z_t,
-            logsnr=torch.full((shape[0],), logsnr_t, device=z_t.device),
+            logsnr=torch.full((shape[0],), logsnr_t, dtype=dtype, device=z_t.device),
         )
         x_pred_t = model_out['model_x']
         eps_pred_t = model_out['model_eps']
@@ -209,25 +212,20 @@ class DiffusionHandler:
 
     def reverse_dpm_step(self, net, i, z_t):
         shape, dtype = z_t.shape, z_t.dtype
-        logsnr_t = self.logsnr_schedule_fn((i + 1.0).astype(dtype) / self.num_steps)
-        logsnr_s = self.logsnr_schedule_fn(i.astype(dtype) / self.num_steps)
+        logsnr_t = self.logsnr_schedule_fn((i + 1.0) / self.num_steps)
+        logsnr_s = self.logsnr_schedule_fn(i / self.num_steps)
         z_s_dist = self.predict(
             net=net,
             z_t=z_t,
-            logsnr_t=torch.full((shape[0],), logsnr_t),
-            logsnr_s=torch.full((shape[0],), logsnr_s),
+            logsnr_t=torch.full((shape[0],), logsnr_t, dtype=dtype, device=z_t.device),
+            logsnr_s=torch.full((shape[0],), logsnr_s, dtype=dtype, device=z_t.device),
         )
-        eps = torch.randn(size=shape, dtype=dtype)
+        eps = torch.randn(size=shape, dtype=dtype, device=z_t.device)
         return torch.where(
             i == 0, z_s_dist['pred_x'], z_s_dist['mean'] + z_s_dist['std'] * eps
         )
 
-    def sample(
-        self,
-        *,
-        net,
-        init_x,
-    ):
+    def sample(self, *, net, init_x):
         if self.sampler == 'ddim':
             body_fun = lambda i, z_t: self.ddim_step(
                 net,
