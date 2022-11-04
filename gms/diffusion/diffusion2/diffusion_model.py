@@ -75,6 +75,6 @@ class VDiffusionModel(common.GM):
             'sampling_process',
             vid,
             epoch,
-            fps=60,
+            fps=self.G.timesteps / 3,
         )
         torch.manual_seed(random.randint(0, 2**32))

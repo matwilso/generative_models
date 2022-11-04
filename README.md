@@ -6,7 +6,7 @@ The goal of this repo is to provide implementations of the important fundamental
 Most models are expressed within about 100 lines of code, including network architecture definitions---except for diffusion models, which get a bit messy.
 As such, they do not contain all SOTA architectures or other tricks.
 
-There is a central training script ([main.py](./gms/main.py)) that can load any of the models, train
+There is a central training script ([train.py](./gms/train.py)) that can load any of the models, train
 them on MNIST, and log metrics to tensorboard. See usage below.
 
 **Install**
@@ -63,38 +63,38 @@ And should be treated in some isolation.
 #### [RNN/LSTM](gms/autoregs/rnn.py)
 Generate an MNIST image one pixel at a time with an LSTM
 ```
-python -m gms.main --model=rnn
+python -m gms.train --model=rnn
 ```
 #### [MADE](gms/autoregs/made.py)
 Run MADE on a flattened MNIST image
 ```
-python -m gms.main --model=made
+python -m gms.train --model=made
 ```
 #### [Wavenet](gms/autoregs/wavenet.py)
 Run a Wavenet on a flattened MNIST image
 ```
-python -m gms.main --model=wavenet
+python -m gms.train --model=wavenet
 ```
 #### [PixelCNN (original)](gms/autoregs/pixelcnn.py)
 ```
-python -m gms.main --model=pixel_cnn
+python -m gms.train --model=pixel_cnn
 ```
 #### [GatedPixelCNN (improved mask version)](gms/autoregs/gatedcnn.py)
 ```
-python -m gms.main --model=gated_pixel_cnn
+python -m gms.train --model=gated_pixel_cnn
 ```
 #### [PixelTransformer](gms/autoregs/transformer.py)
 Kind of like a PixelCNN but uses a transformer architecture where the individual pixels are as considered tokens (28x28=784 of them for MNIST).
 Kind of like ImageGPT.
 ```
-python -m gms.main --model=pixel_transformer
+python -m gms.train --model=pixel_transformer
 ```
 
 ## [Variational Autoencoders (VAEs)](gms/vaes/)
 
 #### [VAE (vanilla)](gms/vaes/vae.py)
 ```
-python -m gms.main --model=vae
+python -m gms.train --model=vae
 ```
 #### [VQ-VAE](gms/vaes/vqvae.py)
 
@@ -110,19 +110,19 @@ We instead downsample to 7x7 codes, which are 64-way categorical (K=64). This sp
 to 64^49 possible values that the latent can take on. So still pretty expressive.
 
 ```
-python -m gms.main --model=vqvae
+python -m gms.train --model=vqvae
 ```
 ## [Generative Adversarial Networks (GANs)](gms/gans/)
 
 #### [GAN (vanilla/scaled down DCGAN)](gms/gans/gan.py)
 ```
-python -m gms.main --model=gan
+python -m gms.train --model=gan
 ```
 
 ## [Diffusion Models](gms/diffusion/)
 
 ```
-python -m gms.main --model=diffusion_model
+python -m gms.train --model=diffusion_model
 ```
 
 (after 10 epochs of training. left: sampling process (x_500, x_499, x_498, ..., x_0), right: predictions of x_0, given current x_t.)
@@ -134,11 +134,13 @@ python -m gms.main --model=diffusion_model
 ## Evals
 
 ```
-python /home/matwilso/code/generative_models/gms/main.py --model=arbiter --logdir logs/1102/arbiter --binarize 0
+python /home/matwilso/code/generative_models/gms/train.py --model=arbiter --logdir logs/1102/arbiter --binarize 0
 
-python /home/matwilso/code/generative_models/gms/main.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_100steps/ --arbiter_dir logs/1102/arbiter2/ --bs 500 --mode eval
+python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_100steps/ --arbiter_dir logs/1102/arbiter2/ --bs 500 --mode eval
 
-python /home/matwilso/code/generative_models/gms/main.py --model=v_diffusion_model --logdir logs/1102/900/ddim_500steps --epochs 5 --timesteps 500
+python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --logdir logs/1102/900/ddim_500steps --epochs 5 --timesteps 500
+
+python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_500steps/ --arbiter_dir logs/1102/arbiter2/ --bs 500 --mode eval --timesteps 500
 ```
 
 
