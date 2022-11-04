@@ -74,6 +74,10 @@ def load_mnist(bs, binarize=True, pad32=False):
     return train_loader, test_loader
 
 
+def make_eval_cmd(G):
+    return f'python -m gms.eval --weights_from {G.logdir}/model.pt --arbiter PATH_TO_ARBITER --bs 500'
+
+
 def dump_logger(logger, writer, i, G):
     print('=' * 30)
     print(i)
@@ -85,6 +89,7 @@ def dump_logger(logger, writer, i, G):
     with open(Path(G.logdir) / 'hps.yaml', 'w') as f:
         yaml.dump(G, f, width=float("inf"))
     print('=' * 30)
+    writer.add_text('eval_cmd', make_eval_cmd(G), i)
     writer.flush()
     return defaultdict(lambda: [])
 
