@@ -3,8 +3,8 @@ import sys
 import time
 from itertools import count
 from pathlib import Path
-import numpy as np
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import yaml
@@ -97,21 +97,18 @@ def eval_heavy(logger, model, test_ds, autoencoder, classifier, G):
     """
     TOTAL_SAMPLES = 500  # beyond about 500, we started getting diminishing returns
 
-    model.eval()
-
     # sample the model and get latent vectors for samples as well as test set examples
     # so that we can then compare the two distributions (sampled vs. test).
     sample_ct = 0
     all_z_sample = []
     all_z_real = []
     fid_buffer = FID(num_features=64, feature_extractor=autoencoder, device=G.device)
-
     metrics = {}
 
+    # aggregate latent vectors
     if G.class_cond:
         metrics['classifier_loss'] = []
         all_z_cond_sample = []
-
     for test_batch in test_ds:
         test_x, test_y = test_batch[0].to(G.device), test_batch[1].to(G.device)
         bs = test_x.shape[0]
@@ -130,30 +127,19 @@ def eval_heavy(logger, model, test_ds, autoencoder, classifier, G):
         if sample_ct >= TOTAL_SAMPLES:
             break
 
+    # evaluate metrics
     metrics['ignite_fid'] = fid_buffer.compute()
-
     z_samp = torch.cat(all_z_sample)
     z_real = torch.cat(all_z_real)
     metrics['fid'] = common.compute_fid(z_samp.cpu().numpy(), z_real.cpu().numpy())
-    (
-        metrics['precision'],
-        metrics['recall'],
-        metrics['f1'],
-    ) = common.precision_recall_f1(z_real, z_samp)
-
+    metrics.update(common.precision_recall_f1(real=z_real, gen=z_samp))
     if G.class_cond:
         z_cond_samp = torch.cat(all_z_cond_sample)
-        (
-            metrics['cond_precision'],
-            metrics['cond_recall'],
-            metrics['cond_f1'],
-        ) = common.precision_recall_f1(z_real, z_cond_samp)
+        cond_metrics = common.precision_recall_f1(real=z_real, gen=z_cond_samp)
+        metrics.update(common.prefix_dict(cond_metrics, 'cond_'))
 
     for key, val in metrics.items():
         logger[f'eval/{key}'] += [np.mean(common.to_numpy(val))]
-
-    model.train()
-    return
 
 
 def train(model, train_ds, test_ds, autoencoder, classifier, G):
@@ -183,7 +169,7 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
                     test_x, test_y = test_batch[0].to(G.device), test_batch[1].to(
                         G.device
                     )
-                    test_loss, test_metrics = model.loss(test_x, test_y)
+                    _, test_metrics = model.loss(test_x, test_y)
                     for key in test_metrics:
                         logger[f'{G.model}/test/{key}'] += [
                             test_metrics[key].detach().cpu()
@@ -195,7 +181,6 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
             eval_time = time.time()
             model.evaluate(writer, test_x, test_y, epoch)
             logger['dt/eval'] = time.time() - eval_time
-        model.train()
         # LOGGING
         logger['num_vars'] = common.count_vars(model)
         if epoch % G.save_n == 0:
@@ -215,6 +200,7 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
         logger = common.dump_logger(logger, writer, epoch, G)
         if epoch >= G.epochs:
             break
+        model.train()
 
 
 if __name__ == '__main__':

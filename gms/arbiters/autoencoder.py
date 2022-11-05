@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 from torch import distributions as tdib
 from torch import nn
 from torch.optim import Adam
