@@ -25,7 +25,7 @@ class GAN(common.GM):
         self.bce = nn.BCELoss()
         self.fixed_noise = torch.randn(25, G.noise_size).to(G.device)
 
-    def train_step(self, x):
+    def train_step(self, x, y=None):
         bs = x.shape[0]
         noise = torch.randn(bs, self.G.noise_size).to(self.G.device)
         # DISCRIMINATOR TRAINING - distinguish between real images and generator images
@@ -58,7 +58,7 @@ class GAN(common.GM):
         fake = self.gen(torch.randn(n, self.G.noise_size).to(self.G.device))
         return fake
 
-    def evaluate(self, writer, x, epoch):
+    def evaluate(self, writer, x, y, epoch):
         samples = self.sample(25)
         writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
         # fixed noise

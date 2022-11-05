@@ -36,7 +36,7 @@ class PixelTransformer(common.Autoreg):
             self.dist_head = common.CategoricalHead(G.n_embed, self.in_size, G)
         self.optimizer = Adam(self.parameters(), lr=self.G.lr)
 
-    def train_step(self, x):
+    def train_step(self, x, y=None):
         x = x.flatten(-2).permute(0, 2, 1)
         self.optimizer.zero_grad()
         loss = -self.forward(x).log_prob(x).mean()
@@ -65,7 +65,7 @@ class PixelTransformer(common.Autoreg):
             steps += [batch.cpu()]
         return batch, steps
 
-    def evaluate(self, writer, x, epoch):
+    def evaluate(self, writer, x, y, epoch):
         samples, gen = self.sample(25)
         B, HW, C = samples.shape
         gen = torch.stack(gen).reshape([HW, B, 1, 28, 28]).permute(1, 0, 2, 3, 4)

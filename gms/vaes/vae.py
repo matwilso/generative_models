@@ -42,7 +42,7 @@ class VAE(common.GM):
         z = torch.randn(n, self.G.z_size).to(self.G.device)
         return self._decode(z)
 
-    def evaluate(self, writer, x, epoch):
+    def evaluate(self, writer, x, y, epoch):
         """run samples and other evaluations"""
         samples = self.sample(25)
         writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
