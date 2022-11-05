@@ -8,14 +8,12 @@ from gms import common
 
 
 class Autoencoder(common.GM):
-    """
-    This is an autoencoder trained just for it's latent space.
-    We can then use the latent space to compute FID scores and precision/recall metrics.
-    """
 
     DG = common.AttrDict()  # default G
+    DG.eval_heavy = False
     DG.z_size = 64
     DG.beta = 1e-6
+    DG.binarize = 0
 
     def __init__(self, G):
         super().__init__(G)
@@ -23,12 +21,8 @@ class Autoencoder(common.GM):
         self.decoder = Decoder(G.z_size, G)
         self.optimizer = Adam(self.parameters(), lr=G.lr)
 
-    def save(self, dir, batch):
-        print("SAVED MODEL", dir)
-        path = dir / f'encoder.pt'
-        jit_enc = torch.jit.trace(self.encoder, batch)
-        torch.jit.save(jit_enc, str(path))
-        print(path)
+    def forward(self, x):
+        return self.encoder(x)
 
     def loss(self, x, y=None):
         z = self.encoder(x)
@@ -52,7 +46,7 @@ class Autoencoder(common.GM):
         }
         return loss, metrics
 
-    def evaluate(self, writer, x, epoch):
+    def evaluate(self, writer, x, y, epoch):
         """run samples and other evaluations"""
         z = self.encoder(x[:8])
         recon = self._decode(z)

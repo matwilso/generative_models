@@ -3,8 +3,10 @@ import sys
 import time
 from itertools import count
 from pathlib import Path
+import numpy as np
 
 import torch
+import torch.nn.functional as F
 import yaml
 from ignite.metrics import FID
 from torch.utils.tensorboard import SummaryWriter
@@ -29,10 +31,13 @@ DG.class_cond = 0
 DG.binarize = 1
 DG.pad32 = 0
 DG.mode = 'train'
-DG.weights_from = Path('.')  # path to a model that you want to load and keep training
-DG.arbiter = Path('.')  # for computing a latent space for evaluation metrics
-DG.classifier = Path('.')  # for computing a latent space for evaluation metrics
-DG.eval_heavy = 1
+# path to a model that you want to load and keep training
+DG.weights_from = Path('.')
+# for computing a latent space for eval metrics
+DG.autoencoder = Path('./weights/autoencoder.pt')
+# for conditional generation eval metrics
+DG.classifier = Path('./weights/classifier.pt')
+DG.eval_heavy = 0
 DG.skip_training = 0
 
 
@@ -66,14 +71,6 @@ def load_model_and_data():
                 parser.add_argument(f'--{key}', type=type(value), default=value)
         defaults['logdir'] = tempG.logdir / tempG.model
 
-    # set the arbiter dir to the default model provided by this repo
-    is_binarized = defaults['binarize'] if 'binarize' in defaults else tempG.binarize
-    defaults['arbiter'] = (
-        Path('weights/encoder_binary.pt')
-        if is_binarized
-        else Path('weights/encoder_continuous.pt')
-    )
-
     # do the final parse of cmd line args for what user passes in and instantiate everything
     parser.set_defaults(**defaults)
     G = common.AttrDict(parser.parse_args().__dict__)
@@ -82,13 +79,18 @@ def load_model_and_data():
         model.load_state_dict(torch.load(G.weights_from, map_location=G.device))
     train_ds, test_ds = common.load_mnist(G.bs, binarize=G.binarize, pad32=G.pad32)
     print('num_vars', common.count_vars(model))
-    arbiter = torch.jit.load(G.arbiter).to(G.device) if G.eval_heavy else None
+    autoencoder = torch.jit.load(G.autoencoder).to(G.device) if G.eval_heavy else None
+    classifier = (
+        torch.jit.load(G.classifier).to(G.device)
+        if G.eval_heavy and G.class_cond
+        else None
+    )
 
-    return model, train_ds, test_ds, arbiter, G
+    return model, train_ds, test_ds, autoencoder, classifier, G
 
 
 @torch.inference_mode()
-def eval_heavy(logger, model, test_ds, arbiter, G):
+def eval_heavy(logger, model, test_ds, autoencoder, classifier, G):
     """
     More computationally intensive eval that draws many samples from the generative model and computes
     FID and precision/recall metrics.
@@ -102,40 +104,59 @@ def eval_heavy(logger, model, test_ds, arbiter, G):
     sample_ct = 0
     all_z_sample = []
     all_z_real = []
-    fid_buffer = FID(num_features=64, feature_extractor=arbiter, device=G.device)
+    fid_buffer = FID(num_features=64, feature_extractor=autoencoder, device=G.device)
+
+    metrics = {}
+
+    if G.class_cond:
+        metrics['classifier_loss'] = []
+        all_z_cond_sample = []
+
     for test_batch in test_ds:
-        test_batch[0], test_batch[1] = test_batch[0].to(G.device), test_batch[1].to(
-            G.device
-        )
-        bs = test_batch[0].shape[0]
-        samp = model.sample(bs)
-        fid_buffer.update((samp, test_batch[0]))
-        z_samp = arbiter(samp)
-        z_real = arbiter(test_batch[0])
-        all_z_real.append(z_real)
-        all_z_sample.append(z_samp)
+        test_x, test_y = test_batch[0].to(G.device), test_batch[1].to(G.device)
+        bs = test_x.shape[0]
+        if G.class_cond:
+            # generate class conditioned sample and evaluate it with the classifier
+            cond_samp = model.sample(bs, y=test_y)
+            preds = classifier(cond_samp)
+            metrics['classifier_loss'].append(F.cross_entropy(preds, test_y).item())
+            all_z_cond_sample.append(autoencoder(cond_samp))
+
+        samp = model.sample(bs, y=-torch.ones_like(test_y))
+        fid_buffer.update((samp, test_x))
+        all_z_real.append(autoencoder(test_x))
+        all_z_sample.append(autoencoder(samp))
         sample_ct += bs
         if sample_ct >= TOTAL_SAMPLES:
             break
 
-    ingite_fid = fid_buffer.compute()
-    z_samp = z_samp
-    z_real = z_real
-    fid = common.compute_fid(z_samp.cpu().numpy(), z_real.cpu().numpy())
-    precision, recall, f1 = common.precision_recall_f1(z_real, z_samp)
-    model.train()
-    metrics = {
-        'ingite_fid': ingite_fid,
-        'fid': fid,
-        'precision': precision,
-        'recall': recall,
-        'f1': f1,
-    }
+    metrics['ignite_fid'] = fid_buffer.compute()
+
+    z_samp = torch.cat(all_z_sample)
+    z_real = torch.cat(all_z_real)
+    metrics['fid'] = common.compute_fid(z_samp.cpu().numpy(), z_real.cpu().numpy())
+    (
+        metrics['precision'],
+        metrics['recall'],
+        metrics['f1'],
+    ) = common.precision_recall_f1(z_real, z_samp)
+
+    if G.class_cond:
+        z_cond_samp = torch.cat(all_z_cond_sample)
+        (
+            metrics['cond_precision'],
+            metrics['cond_recall'],
+            metrics['cond_f1'],
+        ) = common.precision_recall_f1(z_real, z_cond_samp)
+
     for key, val in metrics.items():
-        logger[f'eval/{key}'] += [common.to_numpy(val)]
+        logger[f'eval/{key}'] += [np.mean(common.to_numpy(val))]
+
+    model.train()
+    return
 
 
-def train(model, train_ds, test_ds, arbiter, G):
+def train(model, train_ds, test_ds, autoencoder, classifier, G):
     writer = SummaryWriter(G.logdir)
     logger = common.dump_logger({}, writer, 0, G)
 
@@ -146,9 +167,9 @@ def train(model, train_ds, test_ds, arbiter, G):
         for batch in train_ds:
             if G.skip_training:
                 break
-            batch[0], batch[1] = batch[0].to(G.device), batch[1].to(G.device)
+            train_x, train_y = batch[0].to(G.device), batch[1].to(G.device)
             # TODO: see if we can just use loss and write the gan such that it works.
-            metrics = model.train_step(batch[0], batch[1])
+            metrics = model.train_step(train_x, train_y)
             for key in metrics:
                 logger[f'{G.model}/train/{key}'] += [metrics[key].detach().cpu()]
 
@@ -159,39 +180,37 @@ def train(model, train_ds, test_ds, arbiter, G):
             # if we define an explicit loss function, use it to test how we do on the test set.
             if hasattr(model, 'loss'):
                 for test_batch in test_ds:
-                    test_batch[0], test_batch[1] = test_batch[0].to(
+                    test_x, test_y = test_batch[0].to(G.device), test_batch[1].to(
                         G.device
-                    ), test_batch[1].to(G.device)
-                    test_loss, test_metrics = model.loss(test_batch[0], test_batch[1])
+                    )
+                    test_loss, test_metrics = model.loss(test_x, test_y)
                     for key in test_metrics:
                         logger[f'{G.model}/test/{key}'] += [
                             test_metrics[key].detach().cpu()
                         ]
             else:
                 test_batch = next(iter(test_ds))
-                test_batch[0], test_batch[1] = test_batch[0].to(G.device), test_batch[
-                    1
-                ].to(G.device)
+                test_x, test_y = test_batch[0].to(G.device), test_batch[1].to(G.device)
             # run the model specific evaluate function. usually draws samples and creates other relevant visualizations.
             eval_time = time.time()
-            model.evaluate(writer, test_batch[0], test_batch[1], epoch)
+            model.evaluate(writer, test_x, test_y, epoch)
             logger['dt/eval'] = time.time() - eval_time
         model.train()
         # LOGGING
         logger['num_vars'] = common.count_vars(model)
         if epoch % G.save_n == 0:
-            path = G.logdir / f'model_{epoch}.pt'
-            latest_path = G.logdir / 'model.pt'
-            print("SAVED MODEL", path)
-            torch.save(model.state_dict(), path)
-            if latest_path.exists():
-                latest_path.unlink()
-            latest_path.symlink_to(path.absolute())
-            if G.model == 'autoencoder':
-                model.save(G.logdir, batch[0])
+            model_path = G.logdir / f'model.pt'
+            if G.model == 'autoencoder' or G.model == 'classifier':
+                model_path = model_path.with_suffix('.jit.pt')
+                jit_enc = torch.jit.trace(model, test_x)
+                torch.jit.save(jit_enc, model_path)
+            else:
+                torch.save(model.state_dict(), model_path)
+            print("SAVED MODEL", model_path)
+
             if G.eval_heavy:
                 eval_heavy_time = time.time()
-                eval_heavy(logger, model, test_ds, arbiter, G)
+                eval_heavy(logger, model, test_ds, autoencoder, classifier, G)
                 logger['dt/eval_heavy'] = time.time() - eval_heavy_time
         logger = common.dump_logger(logger, writer, epoch, G)
         if epoch >= G.epochs:
@@ -199,5 +218,5 @@ def train(model, train_ds, test_ds, arbiter, G):
 
 
 if __name__ == '__main__':
-    model, train_ds, test_ds, arbiter, G = load_model_and_data()
-    train(model, train_ds, test_ds, arbiter, G)
+    model, train_ds, test_ds, autoencoder, classifier, G = load_model_and_data()
+    train(model, train_ds, test_ds, autoencoder, classifier, G)

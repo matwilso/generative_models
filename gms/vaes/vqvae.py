@@ -33,7 +33,7 @@ class VQVAE(common.GM):
             self.pixel_transformer.parameters(), lr=G.prior_lr, betas=(0.5, 0.999)
         )
 
-    def train_step(self, x):
+    def train_step(self, x, y=None):
         # ENC-VQ-DEC
         self.zero_grad()
         embed_loss, decoded, perplexity, idxs = self.forward(x)
@@ -69,7 +69,7 @@ class VQVAE(common.GM):
         decoded = self.decoder(prior_enc)
         return 1.0 * (torch.sigmoid(decoded) > 0.5).cpu()
 
-    def evaluate(self, writer, x, epoch):
+    def evaluate(self, writer, x, y, epoch):
         _, decoded, _, _ = self.forward(x[:8])
         recon = 1.0 * (torch.sigmoid(decoded) > 0.5).cpu()
         recon = torch.cat([x[:8].cpu(), recon], 0)

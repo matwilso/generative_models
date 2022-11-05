@@ -134,13 +134,17 @@ python -m gms.train --model=diffusion_model
 ## Evals
 
 ```
+python -m gms.main --model diffusion_model --logdir logs/1105/noon/diffusion/2 --autoencoder logs/1105/noon/arbiter/model.jit.pt --classifier logs/1105/noon/classifier/model.jit.pt
+
+
+
 python /home/matwilso/code/generative_models/gms/train.py --model=autoencoder --logdir logs/1102/autoencoder --binarize 0
 
-python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_100steps/ --arbiter logs/1102/autoencoder2/ --bs 500 --mode eval
+python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_100steps/ --autoencoder logs/1102/autoencoder2/ --bs 500 --mode eval
 
 python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --logdir logs/1102/900/ddim_500steps --epochs 5 --timesteps 500
 
-python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_500steps/ --arbiter logs/1102/autoencoder2/ --bs 500 --mode eval --timesteps 500
+python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_500steps/ --autoencoder logs/1102/autoencoder2/ --bs 500 --mode eval --timesteps 500
 ```
 
 
@@ -151,10 +155,11 @@ python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_mo
 - Score matching? seems quite related to diffusion models
 
 // TODO: more explanations of the algorithms <br>
-// TODO: add class condition <br>
-// TODO: try interpolation <br>
-// TODO: visualizations of samples and training progression. <br>
+// TODO: add class conditioning for all algorithms <br>
+// TODO: try interpolation between two data points <br>
+// TODO: better visualizations of samples and training progression. <br>
 // TODO: bits/dim for autoreg methods.  <br>
-// TODO: FID or something for comparing sample qualities head to head. <br>
+// TODO: list in the readme FID or something for comparing sample qualities head to head. <br>
 // TODO: head-to-head training times and such, both generally and specifically for autoregs, which have a very similar structure. <br>
 // TODO: tests. <br>
+// TODO: switch to iter based instead of epoch based logging. <br>
