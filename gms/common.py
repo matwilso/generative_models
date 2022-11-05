@@ -23,6 +23,10 @@ class AttrDict(dict):
     __getattr__ = dict.__getitem__
 
 
+def prefix_dict(name, dict):
+    return {name + key: dict[key] for key in dict}
+
+
 def convert_camel_to_snake(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
@@ -255,11 +259,11 @@ def compute_fid(x, y):
         )
         # TODO: this is somewhat concerning i got an imaginary number before.
         return fid.real
-    except:
+    except Exception:
         return np.nan
 
 
-def precision_recall_f1(real, gen, k=3):
+def precision_recall_f1(*, real, gen, k=3):
     """
     precision = realistic. fraction of generated images that are realistic
     recall = coverage. fraction of data manifold covered by generator
@@ -287,15 +291,4 @@ def precision_recall_f1(real, gen, k=3):
     precision = _manifold_estimate(real, gen, k)
     recall = _manifold_estimate(gen, real, k)
     f1 = 2 * (precision * recall) / (precision + recall)
-    return precision, recall, f1
-
-
-def compute_agged(paz, taz):
-    metrics = {}
-    fvd = compute_fid(paz.cpu().numpy(), taz.cpu().numpy())
-    metrics['fvd'] = fvd
-    precision, recall, f1 = precision_recall_f1(taz[:5000], paz[:5000], k=3)
-    metrics['precision'] = precision.cpu()
-    metrics['recall'] = recall.cpu()
-    metrics['f1'] = f1.cpu()
-    return metrics
+    return {'precision': precision, 'recall': recall, 'f1': f1}
