@@ -7,10 +7,15 @@ from torch.optim import Adam
 from gms import common
 
 
-class VAE(common.GM):
+class Autoencoder(common.GM):
+    """
+    This is an autoencoder trained just for it's latent space.
+    We can then use the latent space to compute FID scores and precision/recall metrics.
+    """
+
     DG = common.AttrDict()  # default G
-    DG.z_size = 128
-    DG.beta = 1.0
+    DG.z_size = 64
+    DG.beta = 1e-6
 
     def __init__(self, G):
         super().__init__(G)
@@ -18,37 +23,40 @@ class VAE(common.GM):
         self.decoder = Decoder(G.z_size, G)
         self.optimizer = Adam(self.parameters(), lr=G.lr)
 
+    def save(self, dir, batch):
+        print("SAVED MODEL", dir)
+        path = dir / f'encoder.pt'
+        jit_enc = torch.jit.trace(self.encoder, batch)
+        torch.jit.save(jit_enc, str(path))
+        print(path)
+
     def loss(self, x, y=None):
-        """VAE loss"""
-        z_post = self.encoder(x)  # posterior  p(z|x)
-        decoded = self.decoder(z_post.rsample())  # reconstruction p(x|z)
+        z = self.encoder(x)
+        decoded = self.decoder(z)
         if self.G.binarize:
-            recon_loss = -tdib.Bernoulli(logits=decoded).log_prob(x).mean((1, 2, 3))
+            recon_loss = -tdib.Bernoulli(probs=decoded).log_prob(x).mean((1, 2, 3))
         else:
             recon_loss = -tdib.Normal(decoded, 1).log_prob(x).mean((1, 2, 3))
         # kl div constraint
+        z_post = tdib.Normal(z, 1)
         z_prior = tdib.Normal(0, 1)
         kl_loss = tdib.kl_divergence(z_post, z_prior).mean(-1)
         # full loss and metrics
         loss = (recon_loss + self.G.beta * kl_loss).mean()
         metrics = {
-            'vae_loss': loss,
+            'full_loss': loss,
             'recon_loss': recon_loss.mean(),
             'kl_loss': kl_loss.mean(),
+            'z_mean': z.mean(),
+            'z_std': z.std(),
         }
         return loss, metrics
 
-    def sample(self, n):
-        z = torch.randn(n, self.G.z_size).to(self.G.device)
-        return self._decode(z)
-
     def evaluate(self, writer, x, epoch):
         """run samples and other evaluations"""
-        samples = self.sample(25)
-        writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
-        z_post = self.encoder(x[:8])
+        z = self.encoder(x[:8])
+        recon = self._decode(z)
         truth = x[:8].cpu()
-        recon = self._decode(z_post.mean)
         error = (recon - truth + 1.0) / 2.0
         stack = torch.cat([truth, recon, error], 0)
         writer.add_image(
@@ -56,7 +64,10 @@ class VAE(common.GM):
         )
 
     def _decode(self, x):
-        return 1.0 * (torch.sigmoid(self.decoder(x)) > 0.5).cpu()
+        if self.G.binarize:
+            return 1.0 * (torch.sigmoid(self.decoder(x)) > 0.5).cpu()
+        else:
+            return self.decoder(x).cpu()
 
 
 class Encoder(nn.Module):
@@ -70,17 +81,12 @@ class Encoder(nn.Module):
             nn.ReLU(),
             nn.Conv2d(H, H, 3, 1),
             nn.ReLU(),
-            nn.Conv2d(H, 2 * out_size, 3, 2),
+            nn.Conv2d(H, out_size, 3, 2),
             nn.Flatten(1, 3),
         )
 
-    def get_dist(self, x):
-        mu, log_std = x.chunk(2, -1)
-        std = F.softplus(log_std) + 1e-4
-        return tdib.Normal(mu, std)
-
     def forward(self, x):
-        return self.get_dist(self.net(x))
+        return self.net(x)
 
 
 class Decoder(nn.Module):
@@ -96,6 +102,11 @@ class Decoder(nn.Module):
             nn.ReLU(),
             nn.ConvTranspose2d(H, 1, 3, 1),
         )
+        if G.binarize:
+            self.net.add_module('sigmoid', nn.Sigmoid())
+        else:
+            self.net.add_module('tanh', nn.Tanh())
+        self.G = G
 
     def forward(self, x):
         x = self.net(x[..., None, None])

@@ -66,7 +66,7 @@ class PixelCNN(common.Autoreg):
                 x = layer(x)
         return tdib.Bernoulli(logits=x.view(batch_size, *self.input_shape))
 
-    def loss(self, x):
+    def loss(self, x, y=None):
         loss = -self.forward(x).log_prob(x).mean()
         return loss, {'nlogp': loss}
 
