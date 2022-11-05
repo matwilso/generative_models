@@ -12,7 +12,7 @@ from gms.diffusion.diffusion2.simple_unet import SimpleUnet
 class VDiffusionModel(common.GM):
     DG = common.AttrDict()  # default G
     DG.binarize = 0
-    DG.timesteps = 500  # seems to work pretty well for MNIST
+    DG.timesteps = 250
     DG.hidden_size = 128
     DG.dropout = 0.0
     DG.sampler = 'ddim'
@@ -37,7 +37,7 @@ class VDiffusionModel(common.GM):
         self.optimizer.step()
         return metrics
 
-    def loss(self, x):
+    def loss(self, x, y=None):
         metrics = self.diffusion_handler.training_losses(net=self.net, x=x)
         metrics = {key: val.mean() for key, val in metrics.items()}
         loss = metrics['loss']

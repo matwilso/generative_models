@@ -32,7 +32,7 @@ class DiffusionModel(common.GM):
         self.optimizer.step()
         return metrics
 
-    def loss(self, x):
+    def loss(self, x, y=None):
         t = torch.randint(0, self.G.timesteps, (x.shape[0],)).to(x.device)
         metrics = self.diffusion.training_losses(self.net, x, t)
         metrics = {key: val.mean() for key, val in metrics.items()}

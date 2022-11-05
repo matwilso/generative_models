@@ -134,13 +134,13 @@ python -m gms.train --model=diffusion_model
 ## Evals
 
 ```
-python /home/matwilso/code/generative_models/gms/train.py --model=arbiter --logdir logs/1102/arbiter --binarize 0
+python /home/matwilso/code/generative_models/gms/train.py --model=autoencoder --logdir logs/1102/autoencoder --binarize 0
 
-python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_100steps/ --arbiter_dir logs/1102/arbiter2/ --bs 500 --mode eval
+python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_100steps/ --arbiter logs/1102/autoencoder2/ --bs 500 --mode eval
 
 python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --logdir logs/1102/900/ddim_500steps --epochs 5 --timesteps 500
 
-python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_500steps/ --arbiter_dir logs/1102/arbiter2/ --bs 500 --mode eval --timesteps 500
+python /home/matwilso/code/generative_models/gms/train.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_500steps/ --arbiter logs/1102/autoencoder2/ --bs 500 --mode eval --timesteps 500
 ```
 
 

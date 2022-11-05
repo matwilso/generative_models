@@ -55,7 +55,7 @@ class MADE(common.Autoreg):
         for l, m in zip(layers, masks):
             l.set_mask(m)
 
-    def loss(self, x):
+    def loss(self, x, y=None):
         x = x.to(self.G.device)
         x = x.view(-1, 784)  # Flatten image
         logits = self.net(x)

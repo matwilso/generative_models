@@ -15,6 +15,13 @@ from torch.optim import Adam
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
+# BASIC DEFS AND UTILS
+
+
+class AttrDict(dict):
+    __setattr__ = dict.__setitem__
+    __getattr__ = dict.__getitem__
+
 
 def convert_camel_to_snake(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
@@ -39,6 +46,45 @@ def discover_models():
             if type(obj) == type and issubclass(obj, GM):
                 models[convert_camel_to_snake(key)] = obj
     return models
+
+
+def to_numpy(x):
+    if isinstance(x, torch.Tensor):
+        return x.detach().cpu().numpy()
+    else:
+        return x
+
+
+def dump_logger(logger, writer, i, G):
+    print('=' * 30)
+    print(i)
+    for key in logger:
+        val = np.mean(logger[key])
+        writer.add_scalar(key, val, i)
+        print(key, val)
+    print(G.full_cmd)
+    with open(Path(G.logdir) / 'hps.yaml', 'w') as f:
+        yaml.dump(dict(G), f, width=float("inf"))
+    print('=' * 30)
+    writer.flush()
+    return defaultdict(lambda: [])
+
+
+def args_type(default):
+    if isinstance(default, bool):
+        return lambda x: bool(['False', 'True'].index(x))
+    if isinstance(default, int):
+        return lambda x: float(x) if ('e' in x or '.' in x) else int(x)
+    if isinstance(default, Path):
+        return lambda x: Path(x).expanduser()
+    return type(default)
+
+
+def count_vars(module):
+    return sum([np.prod(p.shape) for p in module.parameters()])
+
+
+# DATA
 
 
 def load_mnist(bs, binarize=True, pad32=False):
@@ -74,43 +120,7 @@ def load_mnist(bs, binarize=True, pad32=False):
     return train_loader, test_loader
 
 
-def make_eval_cmd(G):
-    return f'python -m gms.eval --weights_from {G.logdir}/model.pt --arbiter PATH_TO_ARBITER --bs 500'
-
-
-def dump_logger(logger, writer, i, G):
-    print('=' * 30)
-    print(i)
-    for key in logger:
-        val = np.mean(logger[key])
-        writer.add_scalar(key, val, i)
-        print(key, val)
-    print(G.full_cmd)
-    with open(Path(G.logdir) / 'hps.yaml', 'w') as f:
-        yaml.dump(G, f, width=float("inf"))
-    print('=' * 30)
-    writer.add_text('eval_cmd', make_eval_cmd(G), i)
-    writer.flush()
-    return defaultdict(lambda: [])
-
-
-def args_type(default):
-    if isinstance(default, bool):
-        return lambda x: bool(['False', 'True'].index(x))
-    if isinstance(default, int):
-        return lambda x: float(x) if ('e' in x or '.' in x) else int(x)
-    if isinstance(default, Path):
-        return lambda x: Path(x).expanduser()
-    return type(default)
-
-
-def count_vars(module):
-    return sum([np.prod(p.shape) for p in module.parameters()])
-
-
-class AttrDict(dict):
-    __setattr__ = dict.__setitem__
-    __getattr__ = dict.__getitem__
+# MODEL DEFS AND UTILS
 
 
 class GM(nn.Module):
@@ -129,7 +139,7 @@ class GM(nn.Module):
         # self.name = Path(inspect.getfile(self.__class__)).with_suffix('').name
         self.optimizer = None
 
-    def train_step(self, x):
+    def train_step(self, x, y):
         """take one step on a batch to update the network"""
         assert hasattr(
             self, 'loss'
@@ -137,19 +147,19 @@ class GM(nn.Module):
         if self.optimizer is None:
             self.optimizer = Adam(self.parameters(), self.G.lr)
         self.optimizer.zero_grad()
-        loss, metrics = self.loss(x)
+        loss, metrics = self.loss(x, y)
         loss.backward()
         self.optimizer.step()
         return metrics
 
-    def evaluate(self, writer, x, epoch):
+    def evaluate(self, writer, x, y, epoch):
         assert (
             False
         ), "you need to implement the evaluate method. make some samples or something."
 
 
 class Autoreg(GM):
-    def evaluate(self, writer, x, epoch):
+    def evaluate(self, writer, x, y, epoch):
         samples, gen = self.sample(25)
         B, C, H, W = samples.shape
         samples = samples.reshape([B, C, H, W])
@@ -188,6 +198,17 @@ class BinaryHead(nn.Module):
         return tdib.Bernoulli(logits=x)
 
 
+def append_location(x):
+    """add xy coords to every pixel"""
+    XY = torch.stack(
+        torch.meshgrid(torch.linspace(0, 1, 28), torch.linspace(0, 1, 28)), 0
+    ).to(x.device)
+    return torch.cat([x, XY[None].repeat_interleave(x.shape[0], 0)], 1)
+
+
+# EVAL AND METRIC UTILS
+
+
 def combine_imgs(arr, row=5, col=5):
     """takes batch of video or image and pushes the batch dim into certain image shapes given by b,row,col"""
     if len(arr.shape) == 4:  # image
@@ -212,14 +233,6 @@ def combine_imgs(arr, row=5, col=5):
         return x
     else:
         raise NotImplementedError()
-
-
-def append_location(x):
-    """add xy coords to every pixel"""
-    XY = torch.stack(
-        torch.meshgrid(torch.linspace(0, 1, 28), torch.linspace(0, 1, 28)), 0
-    ).to(x.device)
-    return torch.cat([x, XY[None].repeat_interleave(x.shape[0], 0)], 1)
 
 
 def compute_fid(x, y):
