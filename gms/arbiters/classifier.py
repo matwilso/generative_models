@@ -6,7 +6,7 @@ from gms import common
 from gms.arbiters.autoencoder import Encoder
 
 
-class Classifier(common.GM):
+class Classifier(common.Arbiter):
     DG = common.AttrDict()  # default G
     DG.eval_heavy = False
     DG.epochs = 6  # we start to overfit after about this many

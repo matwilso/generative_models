@@ -6,7 +6,7 @@ from torch.optim import Adam
 from gms import common
 
 
-class Autoencoder(common.GM):
+class Autoencoder(common.Arbiter):
 
     DG = common.AttrDict()  # default G
     DG.eval_heavy = False
