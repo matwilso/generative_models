@@ -1,5 +1,6 @@
 import random
 from functools import partial
+from pathlib import Path
 
 import torch
 from einops import rearrange, repeat
@@ -22,12 +23,24 @@ class DiffusionModel(common.GM):
     DG.class_cond = 1
     DG.cf_cond_w = 0.5
     DG.cf_drop_prob = 0.1
+    DG.teacher_path = Path('.')
 
     def __init__(self, G):
         super().__init__(G)
         self.net = SimpleUnet(G)
+        if self.G.teacher_path != Path('.'):
+            self.teacher_ddim = torch.jit.load(self.G.teacher_path)
+            # initialize student to teacher weights
+            self.net.load_state_dict(self.teacher_ddim.net.state_dict())
+        else:
+            self.teacher_ddim = None
+
         self.diffusion = GaussianDiffusion(
-            mean_type='v', num_steps=G.timesteps, sampler=G.sampler, cond_w=G.cf_cond_w
+            mean_type='v',
+            num_steps=G.timesteps,
+            sampler=G.sampler,
+            teacher_ddim=self.teacher_ddim,
+            cond_w=G.cf_cond_w,
         )
 
         self.optimizer = Adam(self.parameters(), lr=G.lr)
@@ -35,6 +48,18 @@ class DiffusionModel(common.GM):
             self.size = 32
         else:
             self.size = 28
+
+    def forward(self, x, i, guide=None):
+        return self.diffusion.ddim_step(net=partial(self.net, guide=guide), logsnr_t=i, logsnr_s=i, z_t=x)
+
+    def save(self, path, test_x, test_y):
+        # save both normal version and jitted version. jitted version is nicer for loading
+        super().save(path, test_x)
+        torch_i = torch.zeros(test_x.shape[0], device=test_x.device)
+        model_path = path / 'model.jit.pt'
+        self.forward(test_x, torch_i, test_y)
+        jit_step = torch.jit.trace(self, (test_x, torch_i, test_y))
+        torch.jit.save(jit_step, model_path)
 
     def train_step(self, x, y):
         self.optimizer.zero_grad()
@@ -52,9 +77,10 @@ class DiffusionModel(common.GM):
         return loss, metrics
 
     def sample(self, n, y=None):
-        noise = torch.randn((n, 1, self.size, self.size), device=self.G.device)
-        samples = self.diffusion.sample(net=partial(self.net, guide=y), init_x=noise)
-        return samples[-1]
+        with torch.no_grad():
+            noise = torch.randn((n, 1, self.size, self.size), device=self.G.device)
+            samples = self.diffusion.sample(net=partial(self.net, guide=y), init_x=noise)
+            return samples[-1]
 
     def evaluate(self, writer, x, y, epoch):
         # draw samples and visualize the sampling process
@@ -63,6 +89,8 @@ class DiffusionModel(common.GM):
             if self.G.pad32:
                 x = x[..., 2:-2, 2:-2]
             return x
+
+        # TODO: show unconditional samples as well
 
         torch.manual_seed(0)
         noise = torch.randn((25, 1, self.size, self.size), device=x.device)

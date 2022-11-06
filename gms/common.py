@@ -143,6 +143,10 @@ class GM(nn.Module):
         # self.name = Path(inspect.getfile(self.__class__)).with_suffix('').name
         self.optimizer = None
 
+    def save(self, path, test_x=None, test_y=None):
+        model_path = path / f'model.pt'
+        torch.save(self.state_dict(), model_path)
+
     def train_step(self, x, y):
         """take one step on a batch to update the network"""
         assert hasattr(
@@ -176,6 +180,13 @@ class Autoreg(GM):
                 epoch,
                 fps=60,
             )
+
+
+class Arbiter(GM):
+    def save(self, path, test_x, test_y=None):
+        model_path = path / 'model.jit.pt'
+        jit_enc = torch.jit.trace(self, test_x)
+        torch.jit.save(jit_enc, model_path)
 
 
 class CategoricalHead(nn.Module):

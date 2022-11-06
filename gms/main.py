@@ -95,7 +95,7 @@ def eval_heavy(logger, model, test_ds, autoencoder, classifier, G):
     More computationally intensive eval that draws many samples from the generative model and computes
     FID and precision/recall metrics.
     """
-    TOTAL_SAMPLES = 500  # beyond about 500, we started getting diminishing returns
+    TOTAL_SAMPLES = 500  # beyond this, we started getting diminishing returns
 
     # sample the model and get latent vectors for samples as well as test set examples
     # so that we can then compare the two distributions (sampled vs. test).
@@ -136,7 +136,10 @@ def eval_heavy(logger, model, test_ds, autoencoder, classifier, G):
     if G.class_cond:
         z_cond_samp = torch.cat(all_z_cond_sample)
         cond_metrics = common.precision_recall_f1(real=z_real, gen=z_cond_samp)
-        metrics.update(common.prefix_dict(cond_metrics, 'cond_'))
+        cond_metrics['fid'] = common.compute_fid(
+            z_cond_samp.cpu().numpy(), z_real.cpu().numpy()
+        )
+        metrics.update(common.prefix_dict('cond_', cond_metrics))
 
     for key, val in metrics.items():
         logger[f'eval/{key}'] += [np.mean(common.to_numpy(val))]
@@ -184,19 +187,15 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
         # LOGGING
         logger['num_vars'] = common.count_vars(model)
         if epoch % G.save_n == 0:
-            model_path = G.logdir / f'model.pt'
-            if G.model == 'autoencoder' or G.model == 'classifier':
-                model_path = model_path.with_suffix('.jit.pt')
-                jit_enc = torch.jit.trace(model, test_x)
-                torch.jit.save(jit_enc, model_path)
-            else:
-                torch.save(model.state_dict(), model_path)
-            print("SAVED MODEL", model_path)
+            model.save(G.logdir, test_x, test_y)
+            print("SAVED MODEL", G.logdir)
 
             if G.eval_heavy:
+                print ("RUNNING HEAVY EVAL...")
                 eval_heavy_time = time.time()
                 eval_heavy(logger, model, test_ds, autoencoder, classifier, G)
                 logger['dt/eval_heavy'] = time.time() - eval_heavy_time
+                print("DONE HEAVY EVAL")
         logger = common.dump_logger(logger, writer, epoch, G)
         if epoch >= G.epochs:
             break
