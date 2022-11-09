@@ -279,7 +279,7 @@ def precision_recall_f1(*, real, gen, k=3):
     precision = realistic. fraction of generated images that are realistic
     recall = coverage. fraction of data manifold covered by generator
 
-    precision = how often do you generate something that is closer to a real world sample.
+    precision = how often do you generate something that is closer to a real sample than other real samples.
     recall = how often is there a real sample that is closer to your generated one than other generated ones are.
 
     k determines the strictness of the manifold check. if k=3, then a point from set_b needs

@@ -57,7 +57,7 @@ def load_model_and_data():
         # if we have a weights_from, load the config from there.
         loaded_hp_file = tempG.weights_from.parent / 'hps.yaml'
         with open(loaded_hp_file) as f:
-            loadedG = common.AttrDict(yaml.load(f, Loader=yaml.Loader).__dict__)
+            loadedG = common.AttrDict(yaml.load(f, Loader=yaml.Loader))
         for key, value in loadedG.items():
             defaults[key] = value
             if key not in tempG:
@@ -71,12 +71,16 @@ def load_model_and_data():
                 parser.add_argument(f'--{key}', type=type(value), default=value)
         defaults['logdir'] = tempG.logdir / tempG.model
 
+    if 'full_cmd' in defaults:
+        defaults.pop('full_cmd')
     # do the final parse of cmd line args for what user passes in and instantiate everything
     parser.set_defaults(**defaults)
     G = common.AttrDict(parser.parse_args().__dict__)
     model = Model(G=G).to(G.device)
     if G.weights_from != Path('.'):
-        model.load_state_dict(torch.load(G.weights_from, map_location=G.device))
+        model.net.load_state_dict(
+            torch.load(G.weights_from, map_location=G.device).net.state_dict()
+        )
     train_ds, test_ds = common.load_mnist(G.bs, binarize=G.binarize, pad32=G.pad32)
     print('num_vars', common.count_vars(model))
     autoencoder = torch.jit.load(G.autoencoder).to(G.device) if G.eval_heavy else None
@@ -140,6 +144,7 @@ def eval_heavy(logger, model, test_ds, autoencoder, classifier, G):
             z_cond_samp.cpu().numpy(), z_real.cpu().numpy()
         )
         metrics.update(common.prefix_dict('cond_', cond_metrics))
+        # metrics.update(common.prefix_dict('class_conditioned.', cond_metrics))
 
     for key, val in metrics.items():
         logger[f'eval/{key}'] += [np.mean(common.to_numpy(val))]
@@ -191,7 +196,7 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
             print("SAVED MODEL", G.logdir)
 
             if G.eval_heavy:
-                print ("RUNNING HEAVY EVAL...")
+                print("RUNNING HEAVY EVAL...")
                 eval_heavy_time = time.time()
                 eval_heavy(logger, model, test_ds, autoencoder, classifier, G)
                 logger['dt/eval_heavy'] = time.time() - eval_heavy_time
