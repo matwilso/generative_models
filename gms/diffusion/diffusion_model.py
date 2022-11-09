@@ -40,7 +40,7 @@ class DiffusionModel(common.GM):
             num_steps=G.timesteps,
             sampler=G.sampler,
             teacher_ddim=self.teacher_ddim,
-            cond_w=G.cf_cond_w,
+            cf_cond_w=G.cf_cond_w,
         )
 
         self.optimizer = Adam(self.parameters(), lr=G.lr)
@@ -49,16 +49,33 @@ class DiffusionModel(common.GM):
         else:
             self.size = 28
 
-    def forward(self, x, i, guide=None):
-        return self.diffusion.ddim_step(net=partial(self.net, guide=guide), logsnr_t=i, logsnr_s=i, z_t=x)
+    def forward(self, z_t, u_t, u_s, cond_w, guide=None):
+        """
+        Just defined so we can jit the teacher unet for distillation
+
+        z_t = current latent
+        u_t = current timestep
+        u_s = desired timestep
+        cond_w = class conditional weighting
+
+        returns: z_s, x_pred, eps_pred
+        """
+        logsnr_t = self.diffusion.logsnr_schedule_fn(u_t)
+        logsnr_s = self.diffusion.logsnr_schedule_fn(u_s)
+        return self.diffusion.ddim_step(
+            net=partial(self.net, guide=guide),
+            logsnr_t=logsnr_t,
+            logsnr_s=logsnr_s,
+            z_t=z_t,
+            cond_w=cond_w,
+        )
 
     def save(self, path, test_x, test_y):
         # save both normal version and jitted version. jitted version is nicer for loading
         super().save(path, test_x)
         torch_i = torch.zeros(test_x.shape[0], device=test_x.device)
         model_path = path / 'model.jit.pt'
-        self.forward(test_x, torch_i, test_y)
-        jit_step = torch.jit.trace(self, (test_x, torch_i, test_y))
+        jit_step = torch.jit.trace(self, (test_x, torch_i, torch_i, torch_i, test_y))
         torch.jit.save(jit_step, model_path)
 
     def train_step(self, x, y):
@@ -79,7 +96,9 @@ class DiffusionModel(common.GM):
     def sample(self, n, y=None):
         with torch.no_grad():
             noise = torch.randn((n, 1, self.size, self.size), device=self.G.device)
-            samples = self.diffusion.sample(net=partial(self.net, guide=y), init_x=noise)
+            samples = self.diffusion.sample(
+                net=partial(self.net, guide=y), init_x=noise
+            )[0]
             return samples[-1]
 
     def evaluate(self, writer, x, y, epoch):
@@ -95,9 +114,11 @@ class DiffusionModel(common.GM):
         torch.manual_seed(0)
         noise = torch.randn((25, 1, self.size, self.size), device=x.device)
         labels = torch.arange(25, dtype=torch.long, device=x.device) % 10
-        preds = self.diffusion.sample(net=partial(self.net, guide=labels), init_x=noise)
-        preds = proc(preds)
-        sample = preds[-1]
+        zs, xs, eps = self.diffusion.sample(
+            net=partial(self.net, guide=labels), init_x=noise
+        )
+        zs, xs, eps = proc(zs), proc(xs), proc(eps)
+        sample = zs[-1]
         # convert to a 5x5 grid for sample
         writer.add_image(
             'samples',
@@ -105,12 +126,21 @@ class DiffusionModel(common.GM):
             epoch,
         )
         # and for video as well
-        vid = rearrange(preds, 't (n1 n2) c h w -> t c (n1 h) (n2 w)', n1=5, n2=5)[None]
-        vid = repeat(vid, 'b t c h w -> b t (repeat c) h w', repeat=3)
-        writer.add_video(
-            'sampling_process',
-            vid,
-            epoch,
-            fps=self.G.timesteps / 3,
-        )
+        def make_vid(name, arr):
+            # TODO: make make_vid more used across other gen models
+            vid = rearrange(arr, 't (n1 n2) c h w -> t c (n1 h) (n2 w)', n1=5, n2=5)[
+                None
+            ]
+            vid = repeat(vid, 'b t c h w -> b t (repeat c) h w', repeat=3)
+            writer.add_video(
+                name,
+                vid,
+                epoch,
+                fps=self.G.timesteps / 3,
+            )
+
+        make_vid('sampling_process', zs)
+        make_vid('x_preds', xs)
+        make_vid('eps_preds', eps)
+
         torch.manual_seed(random.randint(0, 2**32))

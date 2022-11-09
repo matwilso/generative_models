@@ -25,8 +25,9 @@ class GaussianDiffusion:
         mean_type,
         num_steps,
         teacher_ddim=None,
+        teacher_mode='step1',
         sampler='ddim',
-        cond_w=0,
+        cf_cond_w=None,
     ):
         self.mean_type = mean_type
         self.num_steps = num_steps
@@ -35,7 +36,13 @@ class GaussianDiffusion:
             'cosine', logsnr_min=-20.0, logsnr_max=20.0
         )
         self.sampler = sampler
-        self.cond_w = cond_w
+        self.cf_cond_w = cf_cond_w
+        self.loss_weight_type = 'snr_trunc'
+        if self.teacher_ddim is not None:
+            assert teacher_mode in ['step1', 'step2']
+            self.teacher_mode = teacher_mode
+            if self.teacher_mode == 'step1':
+                self.loss_weight_type = 'snr'
 
     def _run_model(self, *, net, z, logsnr):
         """
@@ -132,7 +139,7 @@ class GaussianDiffusion:
         bc = lambda z: broadcast_from_left(z, x.shape)
 
         # sample logsnr
-        if self.teacher_ddim is not None:
+        if self.teacher_ddim is not None and self.teacher_mode == 'step2':
             # use discrete for distillation
             assert self.num_steps >= 1
             i = torch.randint(self.num_steps, (x.shape[0],), device=x.device)
@@ -145,33 +152,49 @@ class GaussianDiffusion:
 
         # sample z ~ q(z_logsnr | x)
         z_dist = diffusion_forward(x=x, logsnr=bc(logsnr))
-        z = z_dist['mean'] + z_dist['std'] * eps
+        z_t = z_dist['mean'] + z_dist['std'] * eps
+
+        cond_w = None
 
         # get denoising target
-        if self.teacher_ddim is not None:  # distillation
+        if self.teacher_ddim is not None:  # distillation mode
+            cond_w = 4.0 * torch.rand_like(u)
             teacher_ddim = partial(self.teacher_ddim, guide=net.keywords['guide'])
-
-            # two forward steps of DDIM from z_t using teacher
-            u_mid = u - 0.5 / self.num_steps
             u_s = u - 1.0 / self.num_steps
-            x_pred_mid, z_mid = teacher_ddim(z, u_mid)
-            x_pred_teacher, z_teacher = teacher_ddim(z_mid, u_s)
 
-            # get x-target implied by z_teacher (!= x_pred)
-            logsnr_s = self.logsnr_schedule_fn(u_s)
-            alpha_s = bc(torch.sqrt(torch.sigmoid(logsnr_s)))
-            alpha_t = bc(torch.sqrt(torch.sigmoid(logsnr)))
-            stdv_frac = bc(torch.exp(0.5 * (F.softplus(logsnr) - F.softplus(logsnr_s))))
-            x_target = (z_teacher - stdv_frac * z) / (alpha_s - stdv_frac * alpha_t)
-            x_target = torch.where(bc(i == 0), x_pred_teacher, x_target)
-            eps_target = predict_eps_from_x(z=z, x=x_target, logsnr=logsnr)
+            if self.teacher_mode == 'step1':
+                # clone the teacher, which may be
+                _, x_target, eps_target = teacher_ddim(
+                    z_t=z_t, u_t=u, u_s=u_s, cond_w=cond_w
+                )
+            else:
+                # two forward steps of DDIM from z_t using teacher
+                u_mid = u - 0.5 / self.num_steps
+                z_mid, _, __ = teacher_ddim(z_t=z_t, u_t=u, u_s=u_mid, cond_w=cond_w)
+                z_teacher, x_pred_teacher, _ = teacher_ddim(
+                    z_t=z_mid, u_t=u_mid, u_s=u_s, cond_w=cond_w
+                )
+
+                # get x-target implied by z_teacher (!= x_pred)
+                logsnr_s = self.logsnr_schedule_fn(u_s)
+                alpha_s = bc(torch.sqrt(torch.sigmoid(logsnr_s)))
+                alpha_t = bc(torch.sqrt(torch.sigmoid(logsnr)))
+                stdv_frac = bc(
+                    torch.exp(0.5 * (F.softplus(logsnr) - F.softplus(logsnr_s)))
+                )
+                x_target = (z_teacher - stdv_frac * z_t) / (
+                    alpha_s - stdv_frac * alpha_t
+                )
+                x_target = torch.where(bc(i == 0), x_pred_teacher, x_target)
+                eps_target = predict_eps_from_x(z=z_t, x=x_target, logsnr=logsnr)
 
         else:  # denoise to original data
             x_target = x
             eps_target = eps
 
         # denoising loss
-        model_output = self._run_model(net=net, z=z, logsnr=logsnr)
+        # breakpoint() # feed in w to model if teacher_mode is on
+        model_output = self._run_model(net=net, z=z_t, logsnr=logsnr)
 
         # so for the actual loss, no matter what the model predicts, we are going to
         # you could also get the target for v, but this is what they tend to use in their codebase
@@ -179,11 +202,13 @@ class GaussianDiffusion:
         x_mse = mean_flat(torch.square(model_output['model_x'] - x_target))
         eps_mse = mean_flat(torch.square(model_output['model_eps'] - eps_target))
 
-        # x_mse * max(SNR, 1). SNR-trunc
-        loss = torch.maximum(x_mse, eps_mse)
+        if self.loss_weight_type == 'snr_trunc':  # x_mse * max(SNR, 1)
+            loss = torch.maximum(x_mse, eps_mse)
+        elif self.loss_weight_type == 'snr':  # SNR * x_mse = eps_mse
+            loss = eps_mse
         return {'loss': loss}
 
-    def ddim_step(self, net, logsnr_t, logsnr_s, z_t):
+    def ddim_step(self, *, net, logsnr_t, logsnr_s, z_t, cond_w=None):
         bc = lambda z: broadcast_from_left(z, z_t.shape[:1])
         fbc = lambda z: broadcast_from_left(z, z_t.shape)
         model_out = self._run_model(
@@ -194,22 +219,23 @@ class GaussianDiffusion:
         x_pred_t = model_out['model_x']
         eps_pred_t = model_out['model_eps']
 
-        if self.cond_w != 0:
+        if cond_w is not None:
             # run the model uncoditioned
             uncond_net = partial(net, guide=-torch.ones_like(net.keywords['guide']))
             uncond_model_eps = self._run_model(
                 net=uncond_net, z=z_t, logsnr=bc(logsnr_t)
             )['model_eps']
             # we can do the combination in v-space or e-space, but we choose to do it in e-space.
-            eps_pred_t = ((1 + self.cond_w) * eps_pred_t) - (
-                self.cond_w * uncond_model_eps
-            )
+            eps_pred_t = ((1 + cond_w) * eps_pred_t) - (cond_w * uncond_model_eps)
             x_pred_t = predict_x_from_eps(z=z_t, eps=eps_pred_t, logsnr=logsnr_t)
+            # clip x and redo eps
+            model_x = torch.clip(model_x, -1.0, 1.0)
+            eps_pred_t = predict_eps_from_x(z=z_t, x=model_x, logsnr=logsnr_t)
 
         stdv_s = fbc(torch.sqrt(torch.sigmoid(-logsnr_s)))
         alpha_s = fbc(torch.sqrt(torch.sigmoid(logsnr_s)))
         z_s_pred = alpha_s * x_pred_t + stdv_s * eps_pred_t
-        return x_pred_t, z_s_pred
+        return z_s_pred, x_pred_t, eps_pred_t
 
     def reverse_dpm_step(self, net, logsnr_t, logsnr_s, z_t):
         shape, dtype = z_t.shape, z_t.dtype
@@ -228,12 +254,14 @@ class GaussianDiffusion:
         fbc = lambda z: broadcast_from_left(z, init_x.shape)
         if self.sampler == 'ddim':
             body_fun = lambda logsnr_t, logsnr_s, z_t: self.ddim_step(
-                net,
+                net=net,
                 logsnr_t=logsnr_t,
                 logsnr_s=logsnr_s,
                 z_t=z_t,
+                cond_w=self.cf_cond_w,
             )
         elif self.sampler == 'noisy':
+            breakpoint()  # not supported rn
             body_fun = lambda logsnr_t, logsnr_s, z_t: self.reverse_dpm_step(
                 net,
                 logsnr_t=logsnr_t,
@@ -244,13 +272,17 @@ class GaussianDiffusion:
             raise NotImplementedError(self.sampler)
 
         # loop over t = num_steps-1, ..., 0
-        outs = []
+        all_zs = []
+        all_xs = []
+        all_eps = []
         z_t = init_x
         for i in range(0, self.num_steps)[::-1]:
             torch_i = torch.tensor(i, device=init_x.device)
             logsnr_t = self.logsnr_schedule_fn((torch_i + 1.0) / self.num_steps)
             logsnr_s = self.logsnr_schedule_fn(torch_i / self.num_steps)
-            x_pred_t, z_s_pred = body_fun(logsnr_t, logsnr_s, z_t)
+            z_s_pred, x_pred_t, eps_pred_t = body_fun(logsnr_t, logsnr_s, z_t)
             z_t = torch.where(fbc(torch_i) == 0, x_pred_t, z_s_pred)
-            outs.append(z_t)
-        return torch.stack(outs)
+            all_zs.append(z_t)
+            all_xs.append(x_pred_t)
+            all_eps.append(eps_pred_t)
+        return torch.stack(all_zs), torch.stack(all_xs), torch.stack(all_eps)
