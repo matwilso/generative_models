@@ -3,6 +3,7 @@ import math
 import torch
 import torch.nn.functional as F
 from torch import nn
+import numpy as np
 
 # arch maintains same shape, has resnet skips, and injects the time embedding in many places
 
@@ -44,7 +45,8 @@ class SimpleUnet(nn.Module):
 
     def forward(self, x, timesteps, guide=None, cond_w=None):
         emb = self.time_embed(
-            timestep_embedding(timesteps.float(), 64, self.G.timesteps)
+            #timestep_embedding(timesteps=timesteps.float(), dim=64, max_period=20)
+            timestep_embedding(timesteps=timesteps.float(), dim=64, max_period=self.G.timesteps)
         )
 
         if guide is not None:
@@ -56,8 +58,11 @@ class SimpleUnet(nn.Module):
             emb += guide_emb
 
         if cond_w is not None:
-            breakpoint()
-            cond_w_embed = self.cond_w_embed(timestep_embedding(cond_w, 64, self.G.timesteps))
+            cond_w_embed = self.cond_w_embed(
+                timestep_embedding(
+                    timesteps=cond_w, dim=64, max_period=4
+                )
+            )
             emb += cond_w_embed
 
         # <UNET> downsample, then upsample with skip connections between the down and up.
@@ -199,7 +204,7 @@ def zero_module(module):
     return module
 
 
-def timestep_embedding(timesteps, dim, max_period):
+def timestep_embedding(*, timesteps, dim, max_period):
     """
     Create sinusoidal timestep embeddings.
 
@@ -208,6 +213,8 @@ def timestep_embedding(timesteps, dim, max_period):
     :param max_period: controls the minimum frequency of the embeddings.
     :return: an [N x dim] Tensor of positional embeddings.
     """
+    # TODO: fix this.
+
     half = dim // 2
     freqs = torch.exp(
         -math.log(max_period)
@@ -219,3 +226,22 @@ def timestep_embedding(timesteps, dim, max_period):
     if dim % 2:
         embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
     return embedding
+
+
+# TODO: switch to this and A/B test
+def get_timestep_embedding(
+    timesteps, embedding_dim, max_time=1000.0, dtype=torch.float32
+):
+    """Get timestep embedding."""
+    assert len(timesteps.shape) == 1  # and timesteps.dtype == tf.int32
+    timesteps *= 1000.0 / max_time
+
+    half_dim = embedding_dim // 2
+    emb = np.log(10000) / (half_dim - 1)
+    emb = torch.exp(torch.arange(half_dim, dtype=dtype) * -emb)
+    emb = timesteps.astype(dtype)[:, None] * emb[None, :]
+    emb = torch.concatenate([torch.sin(emb), torch.cos(emb)], axis=1)
+    if embedding_dim % 2 == 1:  # zero pad
+        emb = torch.pad(emb, dtype(0), ((0, 0, 0), (0, 1, 0)))
+    assert emb.shape == (timesteps.shape[0], embedding_dim)
+    return emb

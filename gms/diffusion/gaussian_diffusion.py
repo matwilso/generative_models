@@ -25,7 +25,7 @@ class GaussianDiffusion:
         mean_type,
         num_steps,
         teacher_ddim=None,
-        teacher_mode='step1',
+        teacher_mode=None,
         sampler='ddim',
         sample_cond_w=None,
     ):
@@ -256,13 +256,20 @@ class GaussianDiffusion:
 
     def sample(self, *, net, init_x):
         fbc = lambda z: broadcast_from_left(z, init_x.shape)
+        if self.teacher_ddim is not None:
+            net_cond_w = 4.0 * torch.rand(init_x.shape[0], device=init_x.device)
+            net = partial(net, cond_w=net_cond_w)
+            cond_w = None
+        else:
+            cond_w = self.sample_cond_w
+
         if self.sampler == 'ddim':
             body_fun = lambda logsnr_t, logsnr_s, z_t: self.ddim_step(
                 net=net,
                 logsnr_t=logsnr_t,
                 logsnr_s=logsnr_s,
                 z_t=z_t,
-                cond_w=self.sample_cond_w,
+                cond_w=cond_w
             )
         elif self.sampler == 'noisy':
             breakpoint()  # not supported rn
