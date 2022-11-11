@@ -24,6 +24,7 @@ class DiffusionModel(common.GM):
     DG.sample_cond_w = 0.5
     DG.cf_drop_prob = 0.1
     DG.teacher_path = Path('.')
+    DG.teacher_mode = 'step1'
 
     def __init__(self, G):
         super().__init__(G)
@@ -40,6 +41,7 @@ class DiffusionModel(common.GM):
             num_steps=G.timesteps,
             sampler=G.sampler,
             teacher_ddim=self.teacher_ddim,
+            teacher_mode=self.G.teacher_mode,
             sample_cond_w=G.sample_cond_w,
         )
 
@@ -79,6 +81,7 @@ class DiffusionModel(common.GM):
         super().save(path, test_x)
         torch_i = torch.zeros(test_x.shape[0], device=test_x.device)
         model_path = path / 'model.jit.pt'
+        #jit_step = torch.jit.trace(self, z_t=test_x, u_t=torch_i, u_s=torch_i, cond_w=torch_i, guide=test_y)
         jit_step = torch.jit.trace(self, (test_x, torch_i, torch_i, torch_i, test_y))
         torch.jit.save(jit_step, model_path)
 
