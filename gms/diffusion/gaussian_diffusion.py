@@ -27,7 +27,7 @@ class GaussianDiffusion:
         teacher_ddim=None,
         teacher_mode='step1',
         sampler='ddim',
-        cf_cond_w=None,
+        sample_cond_w=None,
     ):
         self.mean_type = mean_type
         self.num_steps = num_steps
@@ -36,7 +36,7 @@ class GaussianDiffusion:
             'cosine', logsnr_min=-20.0, logsnr_max=20.0
         )
         self.sampler = sampler
-        self.cf_cond_w = cf_cond_w
+        self.sample_cond_w = sample_cond_w
         self.loss_weight_type = 'snr_trunc'
         if self.teacher_ddim is not None:
             assert teacher_mode in ['step1', 'step2']
@@ -158,8 +158,12 @@ class GaussianDiffusion:
 
         # get denoising target
         if self.teacher_ddim is not None:  # distillation mode
+            # sample in range [0,4] as suggested in the paper. also empirically seems like a good range.
             cond_w = 4.0 * torch.rand_like(u)
-            teacher_ddim = partial(self.teacher_ddim, guide=net.keywords['guide'])
+            teacher_ddim = partial(
+                self.teacher_ddim, guide=net.keywords['guide'], cond_w=cond_w
+            )
+            net = partial(net, cond_w=cond_w)
             u_s = u - 1.0 / self.num_steps
 
             if self.teacher_mode == 'step1':
@@ -170,9 +174,9 @@ class GaussianDiffusion:
             else:
                 # two forward steps of DDIM from z_t using teacher
                 u_mid = u - 0.5 / self.num_steps
-                z_mid, _, __ = teacher_ddim(z_t=z_t, u_t=u, u_s=u_mid, cond_w=cond_w)
+                z_mid, _, __ = teacher_ddim(z_t=z_t, u_t=u, u_s=u_mid)
                 z_teacher, x_pred_teacher, _ = teacher_ddim(
-                    z_t=z_mid, u_t=u_mid, u_s=u_s, cond_w=cond_w
+                    z_t=z_mid, u_t=u_mid, u_s=u_s
                 )
 
                 # get x-target implied by z_teacher (!= x_pred)
@@ -193,12 +197,10 @@ class GaussianDiffusion:
             eps_target = eps
 
         # denoising loss
-        # breakpoint() # feed in w to model if teacher_mode is on
         model_output = self._run_model(net=net, z=z_t, logsnr=logsnr)
 
         # so for the actual loss, no matter what the model predicts, we are going to
         # you could also get the target for v, but this is what they tend to use in their codebase
-
         x_mse = mean_flat(torch.square(model_output['model_x'] - x_target))
         eps_mse = mean_flat(torch.square(model_output['model_eps'] - eps_target))
 
@@ -225,12 +227,14 @@ class GaussianDiffusion:
             uncond_model_eps = self._run_model(
                 net=uncond_net, z=z_t, logsnr=bc(logsnr_t)
             )['model_eps']
+
             # we can do the combination in v-space or e-space, but we choose to do it in e-space.
-            eps_pred_t = ((1 + cond_w) * eps_pred_t) - (cond_w * uncond_model_eps)
+            cond_coef, uncond_coef = 1 + cond_w, -cond_w
+            eps_pred_t = (fbc(cond_coef) * eps_pred_t) - (fbc(uncond_coef) * uncond_model_eps)
             x_pred_t = predict_x_from_eps(z=z_t, eps=eps_pred_t, logsnr=logsnr_t)
             # clip x and redo eps
-            model_x = torch.clip(model_x, -1.0, 1.0)
-            eps_pred_t = predict_eps_from_x(z=z_t, x=model_x, logsnr=logsnr_t)
+            x_pred_t = torch.clip(x_pred_t, -1.0, 1.0)
+            eps_pred_t = predict_eps_from_x(z=z_t, x=x_pred_t, logsnr=logsnr_t)
 
         stdv_s = fbc(torch.sqrt(torch.sigmoid(-logsnr_s)))
         alpha_s = fbc(torch.sqrt(torch.sigmoid(logsnr_s)))
@@ -258,7 +262,7 @@ class GaussianDiffusion:
                 logsnr_t=logsnr_t,
                 logsnr_s=logsnr_s,
                 z_t=z_t,
-                cond_w=self.cf_cond_w,
+                cond_w=self.sample_cond_w,
             )
         elif self.sampler == 'noisy':
             breakpoint()  # not supported rn
