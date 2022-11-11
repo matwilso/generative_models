@@ -23,6 +23,11 @@ class SimpleUnet(nn.Module):
             nn.SiLU(),
             nn.Linear(time_embed_dim, time_embed_dim),
         )
+        self.cond_w_embed = nn.Sequential(
+            nn.Linear(64, time_embed_dim),
+            nn.SiLU(),
+            nn.Linear(time_embed_dim, time_embed_dim),
+        )
         self.guide_embed = nn.Sequential(
             nn.Linear(10, time_embed_dim),
             nn.SiLU(),
@@ -37,10 +42,11 @@ class SimpleUnet(nn.Module):
             nn.Conv2d(channels, 1, 3, padding=1),
         )
 
-    def forward(self, x, timesteps, guide=None):
+    def forward(self, x, timesteps, guide=None, cond_w=None):
         emb = self.time_embed(
             timestep_embedding(timesteps.float(), 64, self.G.timesteps)
         )
+
         if guide is not None:
             guide = guide.clone()
             mask = guide == -1
@@ -48,6 +54,11 @@ class SimpleUnet(nn.Module):
             guide_emb = self.guide_embed(F.one_hot(guide, num_classes=10).float())
             guide_emb[mask] = 0  # actually zero out the values
             emb += guide_emb
+
+        if cond_w is not None:
+            breakpoint()
+            cond_w_embed = self.cond_w_embed(timestep_embedding(cond_w, 64, self.G.timesteps))
+            emb += cond_w_embed
 
         # <UNET> downsample, then upsample with skip connections between the down and up.
         x, cache = self.down(x, emb)

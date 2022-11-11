@@ -130,6 +130,8 @@ def log1mexp(x, expm1_guard=1e-7):
 
 
 def broadcast_from_left(x, shape):
+    if isinstance(x, float):
+        x = torch.tensor(x, device='cuda')
     assert len(shape) >= x.ndim
     return torch.broadcast_to(x.reshape(x.shape + (1,) * (len(shape) - x.ndim)), shape)
 

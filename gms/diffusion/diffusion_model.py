@@ -21,7 +21,7 @@ class DiffusionModel(common.GM):
     DG.eval_heavy = 1
     # conditional models
     DG.class_cond = 1
-    DG.cf_cond_w = 0.5
+    DG.sample_cond_w = 0.5
     DG.cf_drop_prob = 0.1
     DG.teacher_path = Path('.')
 
@@ -40,7 +40,7 @@ class DiffusionModel(common.GM):
             num_steps=G.timesteps,
             sampler=G.sampler,
             teacher_ddim=self.teacher_ddim,
-            cf_cond_w=G.cf_cond_w,
+            sample_cond_w=G.sample_cond_w,
         )
 
         self.optimizer = Adam(self.parameters(), lr=G.lr)
@@ -62,8 +62,12 @@ class DiffusionModel(common.GM):
         """
         logsnr_t = self.diffusion.logsnr_schedule_fn(u_t)
         logsnr_s = self.diffusion.logsnr_schedule_fn(u_s)
+        if self.G.teacher_path == Path('.'):
+            net = partial(self.net, guide=guide)
+        else:
+            net = partial(self.net, guide=guide, cond_w=cond_w)
         return self.diffusion.ddim_step(
-            net=partial(self.net, guide=guide),
+            net=net,
             logsnr_t=logsnr_t,
             logsnr_s=logsnr_s,
             z_t=z_t,
