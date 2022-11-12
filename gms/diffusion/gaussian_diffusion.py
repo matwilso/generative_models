@@ -24,21 +24,21 @@ class GaussianDiffusion:
         *,
         mean_type,
         num_steps,
-        teacher_ddim=None,
+        teacher_net=None,
         teacher_mode=None,
         sampler='ddim',
         sample_cond_w=None,
     ):
         self.mean_type = mean_type
         self.num_steps = num_steps
-        self.teacher_ddim = teacher_ddim
+        self.teacher_net = teacher_net
         self.logsnr_schedule_fn = get_logsnr_schedule(
             'cosine', logsnr_min=-20.0, logsnr_max=20.0
         )
         self.sampler = sampler
         self.sample_cond_w = sample_cond_w
         self.loss_weight_type = 'snr_trunc'
-        if self.teacher_ddim is not None:
+        if self.teacher_net is not None:
             assert teacher_mode in ['step1', 'step2']
             self.teacher_mode = teacher_mode
             if self.teacher_mode == 'step1':
@@ -139,7 +139,7 @@ class GaussianDiffusion:
         bc = lambda z: broadcast_from_left(z, x.shape)
 
         # sample logsnr
-        if self.teacher_ddim is not None and self.teacher_mode == 'step2':
+        if self.teacher_net is not None and self.teacher_mode == 'step2':
             # use discrete for distillation
             assert self.num_steps >= 1
             i = torch.randint(self.num_steps, (x.shape[0],), device=x.device)
@@ -157,13 +157,14 @@ class GaussianDiffusion:
         cond_w = None
 
         # get denoising target
-        if self.teacher_ddim is not None:  # distillation mode
+        if self.teacher_net is not None:  # distillation mode
             # sample in range [0,4] as suggested in the paper. also empirically seems like a good range.
             cond_w = 4.0 * torch.rand_like(u)
             net = partial(net, cond_w=cond_w)
-            teacher_ddim = partial(
-                self.teacher_ddim, guide=net.keywords['guide'], cond_w=cond_w
-            )
+
+            #def ddim_step(self, *, net, logsnr_t, logsnr_s, z_t, cond_w=None):
+            teacher_net = partial(self.teacher_net, guide=net.keywords['guide'], cond_w=cond_w)
+            teacher_ddim = partial(self.ddim_step, net=teacher_net)
             u_s = u - 1.0 / self.num_steps
 
             if self.teacher_mode == 'step1':
@@ -256,12 +257,12 @@ class GaussianDiffusion:
 
     def sample(self, *, net, init_x):
         fbc = lambda z: broadcast_from_left(z, init_x.shape)
-        if self.teacher_ddim is not None:
-            net_cond_w = 4.0 * torch.rand(init_x.shape[0], device=init_x.device)
+        net_cond_w = 4.0 * torch.rand(init_x.shape[0], device=init_x.device)
+        if self.teacher_net is not None:
             net = partial(net, cond_w=net_cond_w)
             cond_w = None
         else:
-            cond_w = self.sample_cond_w
+            cond_w = self.sample_cond_w if self.sample_cond_w != -1 else net_cond_w
         logsnr_fn = self.logsnr_schedule_fn
 
         if self.sampler == 'ddim':
@@ -283,7 +284,7 @@ class GaussianDiffusion:
         elif self.sampler == 'teacher_test':
             logsnr_fn = lambda x: x
             import ipdb; ipdb.set_trace()
-            body_fn = lambda u_t, u_s, z_t: self.teacher_ddim(z_t, u_t, u_s, cond_w=net.keywords['cond_w'], guide=net.keywords['guide'])
+            body_fn = lambda u_t, u_s, z_t: self.teacher_net(z_t, u_t, u_s, cond_w=net.keywords['cond_w'], guide=net.keywords['guide'])
         else:
             raise NotImplementedError(self.sampler)
 
@@ -296,7 +297,6 @@ class GaussianDiffusion:
             torch_i = torch.tensor(i, device=init_x.device)
             logsnr_t = logsnr_fn((torch_i + 1.0) / self.num_steps)
             logsnr_s = logsnr_fn(torch_i / self.num_steps)
-            breakpoint()
             z_s_pred, x_pred_t, eps_pred_t = body_fn(logsnr_t, logsnr_s, z_t)
             z_t = torch.where(fbc(torch_i) == 0, x_pred_t, z_s_pred)
             all_zs.append(z_t)

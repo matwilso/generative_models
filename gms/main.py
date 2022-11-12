@@ -1,5 +1,4 @@
 import argparse
-import sys
 import time
 from itertools import count
 from pathlib import Path
@@ -17,6 +16,7 @@ from gms import common
 
 # cmd line args with their default values. models can add additional args of their own
 # DG = (D)efault G, where G is a config object. Single letters C, H, F were already taken, so G. lol
+# TODO: make this support default None values, would require rework. maybe like dataclass
 DG = common.AttrDict()
 DG.model = 'vae'
 DG.bs = 64
@@ -25,7 +25,6 @@ DG.device = 'cuda'
 DG.epochs = 50
 DG.save_n = 5
 DG.logdir = Path('./logs/')
-DG.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
 DG.lr = 3e-4
 DG.class_cond = 0
 DG.binarize = 1
@@ -78,9 +77,7 @@ def load_model_and_data():
     G = common.AttrDict(parser.parse_args().__dict__)
     model = Model(G=G).to(G.device)
     if G.weights_from != Path('.'):
-        model.net.load_state_dict(
-            torch.load(G.weights_from, map_location=G.device).net.state_dict()
-        )
+        model.load_state_dict(torch.load(G.weights_from, map_location=G.device))
     train_ds, test_ds = common.load_mnist(G.bs, binarize=G.binarize, pad32=G.pad32)
     print('num_vars', common.count_vars(model))
     autoencoder = torch.jit.load(G.autoencoder).to(G.device) if G.eval_heavy else None

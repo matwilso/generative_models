@@ -58,6 +58,7 @@ class SimpleUnet(nn.Module):
             emb += guide_emb
 
         if cond_w is not None:
+            breakpoint()
             cond_w_embed = self.cond_w_embed(
                 timestep_embedding(
                     timesteps=cond_w, dim=64, max_period=4
