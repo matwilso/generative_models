@@ -160,10 +160,10 @@ class GaussianDiffusion:
         if self.teacher_ddim is not None:  # distillation mode
             # sample in range [0,4] as suggested in the paper. also empirically seems like a good range.
             cond_w = 4.0 * torch.rand_like(u)
+            net = partial(net, cond_w=cond_w)
             teacher_ddim = partial(
                 self.teacher_ddim, guide=net.keywords['guide'], cond_w=cond_w
             )
-            net = partial(net, cond_w=cond_w)
             u_s = u - 1.0 / self.num_steps
 
             if self.teacher_mode == 'step1':
@@ -262,9 +262,10 @@ class GaussianDiffusion:
             cond_w = None
         else:
             cond_w = self.sample_cond_w
+        logsnr_fn = self.logsnr_schedule_fn
 
         if self.sampler == 'ddim':
-            body_fun = lambda logsnr_t, logsnr_s, z_t: self.ddim_step(
+            body_fn = lambda logsnr_t, logsnr_s, z_t: self.ddim_step(
                 net=net,
                 logsnr_t=logsnr_t,
                 logsnr_s=logsnr_s,
@@ -273,12 +274,16 @@ class GaussianDiffusion:
             )
         elif self.sampler == 'noisy':
             breakpoint()  # not supported rn
-            body_fun = lambda logsnr_t, logsnr_s, z_t: self.reverse_dpm_step(
+            body_fn = lambda logsnr_t, logsnr_s, z_t: self.reverse_dpm_step(
                 net,
                 logsnr_t=logsnr_t,
                 logsnr_s=logsnr_s,
                 z_t=z_t,
             )
+        elif self.sampler == 'teacher_test':
+            logsnr_fn = lambda x: x
+            import ipdb; ipdb.set_trace()
+            body_fn = lambda u_t, u_s, z_t: self.teacher_ddim(z_t, u_t, u_s, cond_w=net.keywords['cond_w'], guide=net.keywords['guide'])
         else:
             raise NotImplementedError(self.sampler)
 
@@ -289,9 +294,10 @@ class GaussianDiffusion:
         z_t = init_x
         for i in range(0, self.num_steps)[::-1]:
             torch_i = torch.tensor(i, device=init_x.device)
-            logsnr_t = self.logsnr_schedule_fn((torch_i + 1.0) / self.num_steps)
-            logsnr_s = self.logsnr_schedule_fn(torch_i / self.num_steps)
-            z_s_pred, x_pred_t, eps_pred_t = body_fun(logsnr_t, logsnr_s, z_t)
+            logsnr_t = logsnr_fn((torch_i + 1.0) / self.num_steps)
+            logsnr_s = logsnr_fn(torch_i / self.num_steps)
+            breakpoint()
+            z_s_pred, x_pred_t, eps_pred_t = body_fn(logsnr_t, logsnr_s, z_t)
             z_t = torch.where(fbc(torch_i) == 0, x_pred_t, z_s_pred)
             all_zs.append(z_t)
             all_xs.append(x_pred_t)
