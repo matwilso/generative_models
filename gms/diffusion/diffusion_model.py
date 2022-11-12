@@ -21,7 +21,7 @@ class DiffusionModel(common.GM):
     DG.eval_heavy = 1
     # conditional models
     DG.class_cond = 1
-    DG.sample_cond_w = 0.5
+    DG.sample_cond_w = -1.0
     DG.cf_drop_prob = 0.1
     DG.teacher_path = Path('.')
     DG.teacher_mode = 'step1'
@@ -30,17 +30,19 @@ class DiffusionModel(common.GM):
         super().__init__(G)
         self.net = SimpleUnet(G)
         if self.G.teacher_path != Path('.'):
-            self.teacher_ddim = torch.jit.load(self.G.teacher_path)
+            import ipdb; ipdb.set_trace()
+            self.teacher_net = SimpleUnet(G)
+            self.teacher_net.load_state_dict(torch.load(self.G.teacher_path))
             # initialize student to teacher weights
-            self.net.load_state_dict(self.teacher_ddim.net.state_dict())
+            self.net.load_state_dict(self.teacher_net.net.state_dict())
         else:
-            self.teacher_ddim = None
+            self.teacher_net = None
 
         self.diffusion = GaussianDiffusion(
             mean_type='v',
             num_steps=G.timesteps,
             sampler=G.sampler,
-            teacher_ddim=self.teacher_ddim,
+            teacher_net=self.teacher_net,
             teacher_mode=self.G.teacher_mode,
             sample_cond_w=G.sample_cond_w,
         )
@@ -50,40 +52,6 @@ class DiffusionModel(common.GM):
             self.size = 32
         else:
             self.size = 28
-
-    def forward(self, z_t, u_t, u_s, cond_w, guide=None):
-        """
-        Just defined so we can jit the teacher unet for distillation
-
-        z_t = current latent
-        u_t = current timestep
-        u_s = desired timestep
-        cond_w = class conditional weighting
-
-        returns: z_s, x_pred, eps_pred
-        """
-        logsnr_t = self.diffusion.logsnr_schedule_fn(u_t)
-        logsnr_s = self.diffusion.logsnr_schedule_fn(u_s)
-        if self.G.teacher_path == Path('.'):
-            net = partial(self.net, guide=guide)
-        else:
-            net = partial(self.net, guide=guide, cond_w=cond_w)
-        return self.diffusion.ddim_step(
-            net=net,
-            logsnr_t=logsnr_t,
-            logsnr_s=logsnr_s,
-            z_t=z_t,
-            cond_w=cond_w,
-        )
-
-    def save(self, path, test_x, test_y):
-        # save both normal version and jitted version. jitted version is nicer for loading
-        super().save(path, test_x)
-        torch_i = torch.zeros(test_x.shape[0], device=test_x.device)
-        model_path = path / 'model.jit.pt'
-        #jit_step = torch.jit.trace(self, z_t=test_x, u_t=torch_i, u_s=torch_i, cond_w=torch_i, guide=test_y)
-        jit_step = torch.jit.trace(self, (test_x, torch_i, torch_i, torch_i, test_y))
-        torch.jit.save(jit_step, model_path)
 
     def train_step(self, x, y):
         self.optimizer.zero_grad()

@@ -1,4 +1,6 @@
 import importlib
+import subprocess
+import sys
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -66,6 +68,9 @@ def dump_logger(logger, writer, i, G):
         val = np.mean(logger[key])
         writer.add_scalar(key, val, i)
         print(key, val)
+
+    G.full_cmd = 'python ' + ' '.join(sys.argv)  # full command that was called
+    G.commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
     print(G.full_cmd)
     with open(Path(G.logdir) / 'hps.yaml', 'w') as f:
         yaml.dump(dict(G), f, width=float("inf"))
