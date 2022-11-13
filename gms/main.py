@@ -77,7 +77,9 @@ def load_model_and_data():
     G = common.AttrDict(parser.parse_args().__dict__)
     model = Model(G=G).to(G.device)
     if G.weights_from != Path('.'):
-        model.load_state_dict(torch.load(G.weights_from, map_location=G.device))
+        model.load_state_dict(
+            torch.load(G.weights_from, map_location=G.device), strict=False
+        )
     train_ds, test_ds = common.load_mnist(G.bs, binarize=G.binarize, pad32=G.pad32)
     print('num_vars', common.count_vars(model))
     autoencoder = torch.jit.load(G.autoencoder).to(G.device) if G.eval_heavy else None

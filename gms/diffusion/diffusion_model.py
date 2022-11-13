@@ -29,10 +29,11 @@ class DiffusionModel(common.GM):
     def __init__(self, G):
         super().__init__(G)
         self.net = SimpleUnet(G)
-        if self.G.teacher_path != Path('.'):
+        if self.G.teacher_path != Path('.') and self.G.weights_from == Path('.'):
+            print("Loading teacher model")
             # initialize student to teacher weights
             self.load_state_dict(torch.load(self.G.teacher_path), strict=False)
-            # make teacher itself
+            # make teacher itself and freeze it
             self.teacher_net = SimpleUnet(G)
             self.teacher_net.load_state_dict(self.net.state_dict().copy())
             self.teacher_net.eval()
@@ -75,7 +76,7 @@ class DiffusionModel(common.GM):
         with torch.no_grad():
             noise = torch.randn((n, 1, self.size, self.size), device=self.G.device)
             net = partial(self.net, guide=y)
-            samples = self.diffusion.sample(net=net, init_x=noise)[0]
+            samples = self.diffusion.sample(net=net, init_x=noise, cond_w=0.5)[0]
             return samples[-1]
 
     def evaluate(self, writer, x, y, epoch):

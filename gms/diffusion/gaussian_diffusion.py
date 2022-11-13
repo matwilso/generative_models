@@ -272,9 +272,13 @@ class GaussianDiffusion:
         x_pred_t = z_s_dist['pred_x']
         return x_pred_t, z_s_pred
 
-    def sample(self, *, net, init_x):
+    def sample(self, *, net, init_x, cond_w=None):
         fbc = lambda z: broadcast_from_left(z, init_x.shape)
-        net_cond_w = 4.0 * torch.rand(init_x.shape[0], device=init_x.device)
+        net_cond_w = (
+            4.0 * torch.rand(init_x.shape[0], device=init_x.device)
+            if cond_w is not None
+            else None
+        )
         if self.teacher_net is not None:
             # during distillation, we just condition the student net on w insted of doing cf guidance
             net = partial(net, cond_w=net_cond_w)
