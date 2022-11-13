@@ -52,9 +52,7 @@ class Autoencoder(common.Arbiter):
         truth = x[:8].cpu()
         error = (recon - truth + 1.0) / 2.0
         stack = torch.cat([truth, recon, error], 0)
-        writer.add_image(
-            'reconstruction', common.combine_imgs(stack, 3, 8)[None], epoch
-        )
+        writer.add_image('reconstruction', common.combine_imgs(stack, 3, 8)[None], epoch)
 
     def _decode(self, x):
         if self.G.binarize:

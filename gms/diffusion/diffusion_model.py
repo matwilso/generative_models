@@ -30,11 +30,14 @@ class DiffusionModel(common.GM):
         super().__init__(G)
         self.net = SimpleUnet(G)
         if self.G.teacher_path != Path('.'):
-            breakpoint()
-            self.teacher_net = SimpleUnet(G)
-            self.teacher_net.load_state_dict(torch.load(self.G.teacher_path))
             # initialize student to teacher weights
-            self.net.load_state_dict(self.teacher_net.net.state_dict())
+            self.load_state_dict(torch.load(self.G.teacher_path), strict=False)
+            # make teacher itself
+            self.teacher_net = SimpleUnet(G)
+            self.teacher_net.load_state_dict(self.net.state_dict().copy())
+            self.teacher_net.eval()
+            for param in self.teacher_net.parameters():
+                param.requires_grad = False
         else:
             self.teacher_net = None
 
@@ -47,7 +50,7 @@ class DiffusionModel(common.GM):
             sample_cond_w=G.sample_cond_w,
         )
 
-        self.optimizer = Adam(self.parameters(), lr=G.lr)
+        self.optimizer = Adam(self.net.parameters(), lr=G.lr)
         if G.pad32:
             self.size = 32
         else:
@@ -71,9 +74,8 @@ class DiffusionModel(common.GM):
     def sample(self, n, y=None):
         with torch.no_grad():
             noise = torch.randn((n, 1, self.size, self.size), device=self.G.device)
-            samples = self.diffusion.sample(
-                net=partial(self.net, guide=y), init_x=noise
-            )[0]
+            net = partial(self.net, guide=y)
+            samples = self.diffusion.sample(net=net, init_x=noise)[0]
             return samples[-1]
 
     def evaluate(self, writer, x, y, epoch):
@@ -103,9 +105,7 @@ class DiffusionModel(common.GM):
         # and for video as well
         def make_vid(name, arr):
             # TODO: make make_vid more used across other gen models
-            vid = rearrange(arr, 't (n1 n2) c h w -> t c (n1 h) (n2 w)', n1=5, n2=5)[
-                None
-            ]
+            vid = rearrange(arr, 't (n1 n2) c h w -> t c (n1 h) (n2 w)', n1=5, n2=5)[None]
             vid = repeat(vid, 'b t c h w -> b t (repeat c) h w', repeat=3)
             writer.add_video(
                 name,
