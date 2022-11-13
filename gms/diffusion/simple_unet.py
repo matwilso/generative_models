@@ -1,9 +1,9 @@
 import math
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-import numpy as np
 
 # arch maintains same shape, has resnet skips, and injects the time embedding in many places
 
@@ -45,8 +45,10 @@ class SimpleUnet(nn.Module):
 
     def forward(self, x, timesteps, guide=None, cond_w=None):
         emb = self.time_embed(
-            #timestep_embedding(timesteps=timesteps.float(), dim=64, max_period=20)
-            timestep_embedding(timesteps=timesteps.float(), dim=64, max_period=self.G.timesteps)
+            # timestep_embedding(timesteps=timesteps.float(), dim=64, max_period=20)
+            timestep_embedding(
+                timesteps=timesteps.float(), dim=64, max_period=self.G.timesteps
+            )
         )
 
         if guide is not None:
@@ -60,9 +62,7 @@ class SimpleUnet(nn.Module):
         if cond_w is not None:
             breakpoint()
             cond_w_embed = self.cond_w_embed(
-                timestep_embedding(
-                    timesteps=cond_w, dim=64, max_period=4
-                )
+                timestep_embedding(timesteps=cond_w, dim=64, max_period=4)
             )
             emb += cond_w_embed
 

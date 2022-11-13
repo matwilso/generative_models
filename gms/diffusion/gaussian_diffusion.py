@@ -162,8 +162,10 @@ class GaussianDiffusion:
             cond_w = 4.0 * torch.rand_like(u)
             net = partial(net, cond_w=cond_w)
 
-            #def ddim_step(self, *, net, logsnr_t, logsnr_s, z_t, cond_w=None):
-            teacher_net = partial(self.teacher_net, guide=net.keywords['guide'], cond_w=cond_w)
+            # def ddim_step(self, *, net, logsnr_t, logsnr_s, z_t, cond_w=None):
+            teacher_net = partial(
+                self.teacher_net, guide=net.keywords['guide'], cond_w=cond_w
+            )
             teacher_ddim = partial(self.ddim_step, net=teacher_net)
             u_s = u - 1.0 / self.num_steps
 
@@ -214,6 +216,7 @@ class GaussianDiffusion:
     def ddim_step(self, *, net, logsnr_t, logsnr_s, z_t, cond_w=None):
         bc = lambda z: broadcast_from_left(z, z_t.shape[:1])
         fbc = lambda z: broadcast_from_left(z, z_t.shape)
+
         model_out = self._run_model(
             net=net,
             z=z_t,
@@ -229,10 +232,12 @@ class GaussianDiffusion:
                 net=uncond_net, z=z_t, logsnr=bc(logsnr_t)
             )['model_eps']
 
-            # we can do the combination in v-space or e-space, but we choose to do it in e-space.
+            ## we can do the combination in v-space or e-space, but we choose to do it in e-space.
             cond_coef, uncond_coef = 1 + cond_w, -cond_w
-            eps_pred_t = (fbc(cond_coef) * eps_pred_t) - (fbc(uncond_coef) * uncond_model_eps)
-            x_pred_t = predict_x_from_eps(z=z_t, eps=eps_pred_t, logsnr=logsnr_t)
+            eps_pred_t = (fbc(cond_coef) * eps_pred_t) + (
+                fbc(uncond_coef) * uncond_model_eps
+            )
+            x_pred_t = predict_x_from_eps(z=z_t, eps=eps_pred_t, logsnr=bc(logsnr_t))
             # clip x and redo eps
             x_pred_t = torch.clip(x_pred_t, -1.0, 1.0)
             eps_pred_t = predict_eps_from_x(z=z_t, x=x_pred_t, logsnr=logsnr_t)
@@ -267,11 +272,7 @@ class GaussianDiffusion:
 
         if self.sampler == 'ddim':
             body_fn = lambda logsnr_t, logsnr_s, z_t: self.ddim_step(
-                net=net,
-                logsnr_t=logsnr_t,
-                logsnr_s=logsnr_s,
-                z_t=z_t,
-                cond_w=cond_w
+                net=net, logsnr_t=logsnr_t, logsnr_s=logsnr_s, z_t=z_t, cond_w=cond_w
             )
         elif self.sampler == 'noisy':
             breakpoint()  # not supported rn
@@ -283,8 +284,14 @@ class GaussianDiffusion:
             )
         elif self.sampler == 'teacher_test':
             logsnr_fn = lambda x: x
-            import ipdb; ipdb.set_trace()
-            body_fn = lambda u_t, u_s, z_t: self.teacher_net(z_t, u_t, u_s, cond_w=net.keywords['cond_w'], guide=net.keywords['guide'])
+            breakpoint()
+            body_fn = lambda u_t, u_s, z_t: self.teacher_net(
+                z_t,
+                u_t,
+                u_s,
+                cond_w=net.keywords['cond_w'],
+                guide=net.keywords['guide'],
+            )
         else:
             raise NotImplementedError(self.sampler)
 

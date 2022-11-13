@@ -30,7 +30,7 @@ class DiffusionModel(common.GM):
         super().__init__(G)
         self.net = SimpleUnet(G)
         if self.G.teacher_path != Path('.'):
-            import ipdb; ipdb.set_trace()
+            breakpoint()
             self.teacher_net = SimpleUnet(G)
             self.teacher_net.load_state_dict(torch.load(self.G.teacher_path))
             # initialize student to teacher weights
