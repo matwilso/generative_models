@@ -34,9 +34,7 @@ class GaussianDiffusion:
     """
 
     def __init__(self, num_timesteps):
-        self.num_timesteps = (
-            num_timesteps  # steps of diffusion (e.g., 1000 in Ho paper)
-        )
+        self.num_timesteps = num_timesteps  # steps of diffusion (e.g., 1000 in Ho paper)
         # initialize betas and calculate alphas for each timestep
         # beta = variance
         self.betas = get_cosine_beta_schedule(num_timesteps)
@@ -130,9 +128,7 @@ class GaussianDiffusion:
         nonzero_mask = (
             (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
         )  # no noise when t == 0
-        sample = (
-            out["mean"] + nonzero_mask * torch.exp(0.5 * out["log_variance"]) * noise
-        )
+        sample = out["mean"] + nonzero_mask * torch.exp(0.5 * out["log_variance"]) * noise
         return {"sample": sample, "pred_xstart": out["pred_xstart"]}
 
     def p_sample(self, model, shape, noise=None, model_kwargs={}):

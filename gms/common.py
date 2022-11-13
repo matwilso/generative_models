@@ -236,12 +236,7 @@ def combine_imgs(arr, row=5, col=5):
     if len(arr.shape) == 4:  # image
         BS, _, H, W = arr.shape
         assert BS == row * col and H == W == 28, (BS, row, col, H, W)
-        x = (
-            arr.reshape([row, col, 28, 28])
-            .permute(0, 2, 1, 3)
-            .flatten(0, 1)
-            .flatten(-2)
-        )
+        x = arr.reshape([row, col, 28, 28]).permute(0, 2, 1, 3).flatten(0, 1).flatten(-2)
         return x
     elif len(arr.shape) == 5:  # video
         BS, T, _, H, W = arr.shape

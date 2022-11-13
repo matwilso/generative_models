@@ -5,11 +5,11 @@ lint:
 	find . -type f -name "*.py" | xargs pylint
 
 format-check:
-	black -S --check .
+	black -S --line-length 90 --check .
 	isort --profile black --check-only .
 
 format:
-	black -S .
+	black -S --line-length 90 .
 	isort --profile black .
 
 test-run-models:

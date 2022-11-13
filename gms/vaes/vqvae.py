@@ -73,9 +73,7 @@ class VQVAE(common.GM):
         _, decoded, _, _ = self.forward(x[:8])
         recon = 1.0 * (torch.sigmoid(decoded) > 0.5).cpu()
         recon = torch.cat([x[:8].cpu(), recon], 0)
-        writer.add_image(
-            'reconstruction', common.combine_imgs(recon, 2, 8)[None], epoch
-        )
+        writer.add_image('reconstruction', common.combine_imgs(recon, 2, 8)[None], epoch)
         samples = self.sample(25)
         writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
 

@@ -162,24 +162,40 @@ class GaussianDiffusion:
             cond_w = 4.0 * torch.rand_like(u)
             net = partial(net, cond_w=cond_w)
 
-            # def ddim_step(self, *, net, logsnr_t, logsnr_s, z_t, cond_w=None):
             teacher_net = partial(
-                self.teacher_net, guide=net.keywords['guide'], cond_w=cond_w
+                self.teacher_net,
+                guide=net.keywords['guide'],
+                cond_w=None if self.teacher_mode == 'step1' else cond_w,
             )
-            teacher_ddim = partial(self.ddim_step, net=teacher_net)
+            teacher_ddim = torch.no_grad()(
+                partial(self.ddim_step, net=teacher_net, cond_w=cond_w)
+            )
             u_s = u - 1.0 / self.num_steps
+            logsnr_s = self.logsnr_schedule_fn(u_s)
 
             if self.teacher_mode == 'step1':
-                # clone the teacher, which may be
                 _, x_target, eps_target = teacher_ddim(
-                    z_t=z_t, u_t=u, u_s=u_s, cond_w=cond_w
+                    z_t=z_t,
+                    logsnr_t=logsnr,
+                    logsnr_s=logsnr_s,
                 )
             else:
+                assert self.teacher_mode == 'step2'
+                teacher_ddim = partial(self.ddim_step, net=teacher_net)
+
                 # two forward steps of DDIM from z_t using teacher
                 u_mid = u - 0.5 / self.num_steps
-                z_mid, _, __ = teacher_ddim(z_t=z_t, u_t=u, u_s=u_mid)
+                logsnr_mid = self.logsnr_schedule_fn(u_mid)
+
+                z_mid, _, __ = teacher_ddim(
+                    z_t=z_t,
+                    logsnr_t=logsnr,
+                    logsnr_s=logsnr_mid,
+                )
                 z_teacher, x_pred_teacher, _ = teacher_ddim(
-                    z_t=z_mid, u_t=u_mid, u_s=u_s
+                    z_t=z_mid,
+                    logsnr_t=logsnr_mid,
+                    logsnr_s=logsnr_s,
                 )
 
                 # get x-target implied by z_teacher (!= x_pred)
@@ -189,9 +205,7 @@ class GaussianDiffusion:
                 stdv_frac = bc(
                     torch.exp(0.5 * (F.softplus(logsnr) - F.softplus(logsnr_s)))
                 )
-                x_target = (z_teacher - stdv_frac * z_t) / (
-                    alpha_s - stdv_frac * alpha_t
-                )
+                x_target = (z_teacher - stdv_frac * z_t) / (alpha_s - stdv_frac * alpha_t)
                 x_target = torch.where(bc(i == 0), x_pred_teacher, x_target)
                 eps_target = predict_eps_from_x(z=z_t, x=x_target, logsnr=logsnr)
 
@@ -232,11 +246,9 @@ class GaussianDiffusion:
                 net=uncond_net, z=z_t, logsnr=bc(logsnr_t)
             )['model_eps']
 
-            ## we can do the combination in v-space or e-space, but we choose to do it in e-space.
+            # we can do the combination in v-space or e-space, but we choose to do it in e-space.
             cond_coef, uncond_coef = 1 + cond_w, -cond_w
-            eps_pred_t = (fbc(cond_coef) * eps_pred_t) + (
-                fbc(uncond_coef) * uncond_model_eps
-            )
+            eps_pred_t = fbc(cond_coef) * eps_pred_t + fbc(uncond_coef) * uncond_model_eps
             x_pred_t = predict_x_from_eps(z=z_t, eps=eps_pred_t, logsnr=bc(logsnr_t))
             # clip x and redo eps
             x_pred_t = torch.clip(x_pred_t, -1.0, 1.0)
@@ -264,11 +276,11 @@ class GaussianDiffusion:
         fbc = lambda z: broadcast_from_left(z, init_x.shape)
         net_cond_w = 4.0 * torch.rand(init_x.shape[0], device=init_x.device)
         if self.teacher_net is not None:
+            # during distillation, we just condition the student net on w insted of doing cf guidance
             net = partial(net, cond_w=net_cond_w)
             cond_w = None
         else:
-            cond_w = self.sample_cond_w if self.sample_cond_w != -1 else net_cond_w
-        logsnr_fn = self.logsnr_schedule_fn
+            cond_w = self.sample_cond_w if self.sample_cond_w != -1.0 else net_cond_w
 
         if self.sampler == 'ddim':
             body_fn = lambda logsnr_t, logsnr_s, z_t: self.ddim_step(
@@ -283,14 +295,12 @@ class GaussianDiffusion:
                 z_t=z_t,
             )
         elif self.sampler == 'teacher_test':
-            logsnr_fn = lambda x: x
-            breakpoint()
-            body_fn = lambda u_t, u_s, z_t: self.teacher_net(
-                z_t,
-                u_t,
-                u_s,
+            body_fn = lambda logsnr_t, logsnr_s, z_t: self.ddim_step(
+                net=partial(self.teacher_net, guide=net.keywords['guide'], cond_w=None),
+                logsnr_t=logsnr_t,
+                logsnr_s=logsnr_s,
+                z_t=z_t,
                 cond_w=net.keywords['cond_w'],
-                guide=net.keywords['guide'],
             )
         else:
             raise NotImplementedError(self.sampler)
@@ -302,8 +312,8 @@ class GaussianDiffusion:
         z_t = init_x
         for i in range(0, self.num_steps)[::-1]:
             torch_i = torch.tensor(i, device=init_x.device)
-            logsnr_t = logsnr_fn((torch_i + 1.0) / self.num_steps)
-            logsnr_s = logsnr_fn(torch_i / self.num_steps)
+            logsnr_t = self.logsnr_schedule_fn((torch_i + 1.0) / self.num_steps)
+            logsnr_s = self.logsnr_schedule_fn(torch_i / self.num_steps)
             z_s_pred, x_pred_t, eps_pred_t = body_fn(logsnr_t, logsnr_s, z_t)
             z_t = torch.where(fbc(torch_i) == 0, x_pred_t, z_s_pred)
             all_zs.append(z_t)
