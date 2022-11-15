@@ -154,19 +154,7 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
     logger = common.dump_logger({}, writer, 0, G)
 
     # TRAINING LOOP
-    for epoch in count(1):
-        # TRAIN
-        train_time = time.time()
-        for batch in train_ds:
-            if G.skip_training:
-                break
-            train_x, train_y = batch[0].to(G.device), batch[1].to(G.device)
-            # TODO: see if we can just use loss and write the gan such that it works.
-            metrics = model.train_step(train_x, train_y)
-            for key in metrics:
-                logger[f'{G.model}/train/{key}'] += [metrics[key].detach().cpu()]
-
-        logger['dt/train'] = time.time() - train_time
+    for epoch in count(0):
         # TEST
         model.eval()
         with torch.no_grad():
@@ -188,6 +176,7 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
             eval_time = time.time()
             model.evaluate(writer, test_x, test_y, epoch)
             logger['dt/eval'] = time.time() - eval_time
+
         # LOGGING
         logger['num_vars'] = common.count_vars(model)
         if epoch % G.save_n == 0:
@@ -201,9 +190,24 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
                 logger['dt/eval_heavy'] = time.time() - eval_heavy_time
                 print("DONE HEAVY EVAL")
         logger = common.dump_logger(logger, writer, epoch, G)
+
         if epoch >= G.epochs:
             break
+
+        # TRAIN
         model.train()
+        train_time = time.time()
+        for batch in train_ds:
+            if G.skip_training:
+                break
+            train_x, train_y = batch[0].to(G.device), batch[1].to(G.device)
+            # TODO: see if we can just use loss and write the gan such that it works.
+            metrics = model.train_step(train_x, train_y)
+            for key in metrics:
+                logger[f'{G.model}/train/{key}'] += [metrics[key].detach().cpu()]
+
+        model.end_epoch()
+        logger['dt/train'] = time.time() - train_time
 
 
 if __name__ == '__main__':
