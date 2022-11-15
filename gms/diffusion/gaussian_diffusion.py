@@ -206,8 +206,8 @@ class GaussianDiffusion:
                     torch.exp(0.5 * (F.softplus(logsnr) - F.softplus(logsnr_s)))
                 )
                 x_target = (z_teacher - stdv_frac * z_t) / (alpha_s - stdv_frac * alpha_t)
-                x_target = torch.where(bc(i == 0), x_pred_teacher, x_target)
-                eps_target = predict_eps_from_x(z=z_t, x=x_target, logsnr=logsnr)
+                x_target = torch.where(bc(i == 0), x_pred_teacher, x_target).detach()
+                eps_target = predict_eps_from_x(z=z_t, x=x_target, logsnr=logsnr).detach()
 
         else:  # denoise to original data
             x_target = x
