@@ -4,13 +4,12 @@ from pathlib import Path
 
 import torch
 from einops import rearrange, repeat
-from torch.optim import Adam, lr_scheduler 
+from torch.cuda import amp
+from torch.optim import Adam, lr_scheduler
 
 from gms import common
 from gms.diffusion.gaussian_diffusion import GaussianDiffusion
 from gms.diffusion.simple_unet import SimpleUnet
-
-from torch.cuda import amp
 
 
 class DiffusionModel(common.GM):
@@ -28,7 +27,6 @@ class DiffusionModel(common.GM):
     DG.teacher_path = Path('.')
     DG.teacher_mode = 'step1'
     DG.lr_scheduler = 'none'
-    DG.adam_ema = 0.999
 
     def __init__(self, G):
         super().__init__(G)
@@ -55,21 +53,25 @@ class DiffusionModel(common.GM):
             sample_cond_w=G.sample_cond_w,
         )
 
-        self.optimizer = Adam(self.net.parameters(), lr=G.lr, betas=(0.9, self.G.adam_ema), eps=1e-08, weight_decay=0)
+        self.optimizer = Adam(self.net.parameters(), lr=G.lr)
         if G.pad32:
             self.size = 32
         else:
             self.size = 28
         self.scaler = amp.GradScaler()
-        #self.scheduler = lr_scheduler.LinearLR
+        # self.scheduler = lr_scheduler.LinearLR
 
         self.scheduler = {
             'none': lr_scheduler.LambdaLR(self.optimizer, lambda x: 1),
-            'linear': lr_scheduler.LinearLR(self.optimizer, start_factor=1.0, end_factor=0.0, total_iters=G.epochs),
+            'linear': lr_scheduler.LinearLR(
+                self.optimizer, start_factor=1.0, end_factor=0.0, total_iters=G.epochs
+            ),
         }[self.G.lr_scheduler]
 
     def end_epoch(self):
         self.scheduler.step()
+        # print learning rate
+        print("Learning rate: ", self.optimizer.param_groups[0]['lr'])
 
     def train_step(self, x, y):
         # train network using torch AMP for float16
@@ -81,15 +83,18 @@ class DiffusionModel(common.GM):
         self.scaler.scale(loss).backward()
         self.scaler.step(self.optimizer)
         self.scaler.update()
+        metrics['loss_scale'] = torch.tensor(self.scaler.get_scale())
         return metrics
 
-        #self.optimizer.zero_grad()
+        # self.optimizer.zero_grad()
         ## sometimes drop out the class
-        #y[torch.rand(y.shape[0]) < self.G.cf_drop_prob] = -1
-        #loss, metrics = self.loss(x, y)
-        #loss.backward()
-        #self.optimizer.step()
-        #return metrics
+        # y[torch.rand(y.shape[0]) < self.G.cf_drop_prob] = -1
+        # loss, metrics = self.loss(x, y)
+        ##loss *= 100.0
+        # loss.backward()
+        # self.optimizer.step()
+        ##print(loss)
+        # return metrics
 
     def loss(self, x, y):
         metrics = self.diffusion.training_losses(net=partial(self.net, guide=y), x=x)
