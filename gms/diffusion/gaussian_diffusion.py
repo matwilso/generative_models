@@ -80,59 +80,6 @@ class GaussianDiffusion:
 
         return {'model_x': model_x, 'model_eps': model_eps, 'model_v': model_v}
 
-    def predict(
-        self,
-        *,
-        net,
-        z_t,
-        logsnr_t,
-        logsnr_s,
-        model_output=None,
-    ):
-        """p(z_s | z_t)."""
-        assert logsnr_t.shape == logsnr_s.shape == (z_t.shape[0],)
-        model_output = self._run_model(net=net, z=z_t, logsnr=logsnr_t)
-
-        logsnr_t = broadcast_from_left(logsnr_t, z_t.shape)
-        logsnr_s = broadcast_from_left(logsnr_s, z_t.shape)
-
-        pred_x = model_output['model_x']
-
-        out = diffusion_reverse(
-            z_t=z_t,
-            logsnr_t=logsnr_t,
-            logsnr_s=logsnr_s,
-            x=pred_x,
-            x_logvar='large',
-        )
-        out['pred_x'] = pred_x
-        return out
-
-    def vb(self, *, net, x, z_t, logsnr_t, logsnr_s, model_output):
-        assert x.shape == z_t.shape
-        assert logsnr_t.shape == logsnr_s.shape == (z_t.shape[0],)
-        q_dist = diffusion_reverse(
-            x=x,
-            z_t=z_t,
-            logsnr_t=broadcast_from_left(logsnr_t, x.shape),
-            logsnr_s=broadcast_from_left(logsnr_s, x.shape),
-            x_logvar='small',
-        )
-        p_dist = self.predict(
-            net=net,
-            z_t=z_t,
-            logsnr_t=logsnr_t,
-            logsnr_s=logsnr_s,
-            model_output=model_output,
-        )
-        kl = normal_kl(
-            mean1=q_dist['mean'],
-            logvar1=q_dist['logvar'],
-            mean2=p_dist['mean'],
-            logvar2=p_dist['logvar'],
-        )
-        return mean_flat(kl) / np.log(2.0)
-
     def training_losses(self, *, net, x):
         assert x.dtype in [torch.float32, torch.float64]
         eps = torch.randn(x.shape, device=x.device, dtype=x.dtype)
@@ -226,6 +173,21 @@ class GaussianDiffusion:
             loss = eps_mse
         return {'loss': loss}
 
+    def _cf_guidance(self, *, net, z_t, eps_pred_t, logsnr_t, cond_w):
+        # run the model uncoditioned
+        uncond_net = partial(net, guide=-torch.ones_like(net.keywords['guide']))
+        uncond_model_out = self._run_model(net=uncond_net, z=z_t, logsnr=logsnr_t)
+        uncond_model_eps = uncond_model_out['model_eps']
+
+        # we can do the combination in v-space or e-space, but we choose to do it in e-space.
+        cond_coef, uncond_coef = 1 + cond_w, -cond_w
+        eps_pred_t = cond_coef * eps_pred_t + uncond_coef * uncond_model_eps
+        x_pred_t = predict_x_from_eps(z=z_t, eps=eps_pred_t, logsnr=logsnr_t)
+        # clip x and redo eps
+        x_pred_t = torch.clip(x_pred_t, -1.0, 1.0)
+        eps_pred_t = predict_eps_from_x(z=z_t, x=x_pred_t, logsnr=logsnr_t)
+        return x_pred_t, eps_pred_t
+
     def ddim_step(self, *, net, logsnr_t, logsnr_s, z_t, cond_w=None):
         bc = lambda z: broadcast_from_left(z, z_t.shape[:1])
         fbc = lambda z: broadcast_from_left(z, z_t.shape)
@@ -239,37 +201,48 @@ class GaussianDiffusion:
         eps_pred_t = model_out['model_eps']
 
         if cond_w is not None:
-            # run the model uncoditioned
-            uncond_net = partial(net, guide=-torch.ones_like(net.keywords['guide']))
-            uncond_model_eps = self._run_model(
-                net=uncond_net, z=z_t, logsnr=bc(logsnr_t)
-            )['model_eps']
-
-            # we can do the combination in v-space or e-space, but we choose to do it in e-space.
-            cond_coef, uncond_coef = 1 + cond_w, -cond_w
-            eps_pred_t = fbc(cond_coef) * eps_pred_t + fbc(uncond_coef) * uncond_model_eps
-            x_pred_t = predict_x_from_eps(z=z_t, eps=eps_pred_t, logsnr=bc(logsnr_t))
-            # clip x and redo eps
-            x_pred_t = torch.clip(x_pred_t, -1.0, 1.0)
-            eps_pred_t = predict_eps_from_x(z=z_t, x=x_pred_t, logsnr=logsnr_t)
+            x_pred_t, eps_pred_t = self._cf_guidance(
+                net=net,
+                z_t=z_t,
+                eps_pred_t=eps_pred_t,
+                logsnr_t=bc(logsnr_t),
+                cond_w=fbc(cond_w),
+            )
 
         stdv_s = fbc(torch.sqrt(torch.sigmoid(-logsnr_s)))
         alpha_s = fbc(torch.sqrt(torch.sigmoid(logsnr_s)))
         z_s_pred = alpha_s * x_pred_t + stdv_s * eps_pred_t
         return z_s_pred, x_pred_t, eps_pred_t
 
-    def reverse_dpm_step(self, net, logsnr_t, logsnr_s, z_t):
-        shape, dtype = z_t.shape, z_t.dtype
-        z_s_dist = self.predict(
-            net=net,
+    def reverse_dpm_step(self, *, net, logsnr_t, logsnr_s, z_t, cond_w=None):
+        bc = lambda z: broadcast_from_left(z, z_t.shape[:1])
+        fbc = lambda z: broadcast_from_left(z, z_t.shape)
+
+        # p(z_s | z_t)
+        model_out = self._run_model(net=net, z=z_t, logsnr=bc(logsnr_t))
+        x_pred_t = model_out['model_x']
+        eps_pred_t = model_out['model_eps']
+
+        if cond_w is not None:
+            x_pred_t, eps_pred_t = self._cf_guidance(
+                net=net,
+                z_t=z_t,
+                eps_pred_t=eps_pred_t,
+                logsnr_t=bc(logsnr_t),
+                cond_w=fbc(cond_w),
+            )
+
+        z_s_dist = diffusion_reverse(
             z_t=z_t,
-            logsnr_t=torch.full((shape[0],), logsnr_t, dtype=dtype, device=z_t.device),
-            logsnr_s=torch.full((shape[0],), logsnr_s, dtype=dtype, device=z_t.device),
+            logsnr_t=fbc(logsnr_t),
+            logsnr_s=fbc(logsnr_s),
+            x=x_pred_t,
+            x_logvar='large',
         )
-        eps = torch.randn(size=shape, dtype=dtype, device=z_t.device)
+
+        eps = torch.randn(size=z_t.shape, dtype=z_t.dtype, device=z_t.device)
         z_s_pred = z_s_dist['mean'] + z_s_dist['std'] * eps
-        x_pred_t = z_s_dist['pred_x']
-        return x_pred_t, z_s_pred
+        return z_s_pred, x_pred_t, eps_pred_t
 
     def sample(self, *, net, init_x, cond_w=None):
         fbc = lambda z: broadcast_from_left(z, init_x.shape)
@@ -291,7 +264,7 @@ class GaussianDiffusion:
             )
         elif self.sampler == 'noisy':
             body_fn = lambda logsnr_t, logsnr_s, z_t: self.reverse_dpm_step(
-                net,
+                net=net,
                 logsnr_t=logsnr_t,
                 logsnr_s=logsnr_s,
                 z_t=z_t,
