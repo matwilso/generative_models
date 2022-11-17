@@ -199,7 +199,6 @@ class GaussianDiffusion:
                 )
 
                 # get x-target implied by z_teacher (!= x_pred)
-                logsnr_s = self.logsnr_schedule_fn(u_s)
                 alpha_s = bc(torch.sqrt(torch.sigmoid(logsnr_s)))
                 alpha_t = bc(torch.sqrt(torch.sigmoid(logsnr)))
                 stdv_frac = bc(
@@ -291,12 +290,12 @@ class GaussianDiffusion:
                 net=net, logsnr_t=logsnr_t, logsnr_s=logsnr_s, z_t=z_t, cond_w=cond_w
             )
         elif self.sampler == 'noisy':
-            breakpoint()  # not supported rn
             body_fn = lambda logsnr_t, logsnr_s, z_t: self.reverse_dpm_step(
                 net,
                 logsnr_t=logsnr_t,
                 logsnr_s=logsnr_s,
                 z_t=z_t,
+                cond_w=cond_w,
             )
         elif self.sampler == 'teacher_test':
             body_fn = lambda logsnr_t, logsnr_s, z_t: self.ddim_step(

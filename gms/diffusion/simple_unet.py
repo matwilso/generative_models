@@ -11,6 +11,8 @@ from torch import nn
 This is a shorter and simpler Unet, designed to work on MNIST.
 """
 
+MAX_TIMESTEPS = 256
+
 
 class SimpleUnet(nn.Module):
     def __init__(self, G):
@@ -47,7 +49,7 @@ class SimpleUnet(nn.Module):
         emb = self.time_embed(
             # timestep_embedding(timesteps=timesteps.float(), dim=64, max_period=20)
             timestep_embedding(
-                timesteps=timesteps.float(), dim=64, max_period=self.G.timesteps
+                timesteps=timesteps.float(), dim=64, max_period=MAX_TIMESTEPS
             )
         )
 
