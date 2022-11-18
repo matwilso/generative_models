@@ -21,7 +21,7 @@ class RNN(common.Autoreg):
         )
         self.fc = nn.Linear(self.G.hidden_size, input_shape[0])
 
-    def loss(self, inp):
+    def loss(self, inp, y=None):
         bs = inp.shape[0]
         x = common.append_location(inp) if self.G.append_loc else inp
 
@@ -51,6 +51,8 @@ class RNN(common.Autoreg):
         return loss, {'nlogp': loss}
 
     def sample(self, n):
+        steps = []
+        viz = torch.zeros(n, 1, 28, 28).to(self.G.device)
         with torch.no_grad():
             samples = torch.zeros(n, 1, self.input_channels).to(self.G.device)
             G = torch.zeros(1, n, self.G.hidden_size).to(self.G.device)
@@ -68,8 +70,10 @@ class RNN(common.Autoreg):
                     loc = loc.view(1, 1, 2).repeat(n, 1, 1)
                     sample_pixel = torch.cat((sample_pixel, loc), dim=-1)
                 samples = torch.cat((samples, sample_pixel), dim=1)
+                viz[:, :, i // 28, i % 28] = sample_pixel[:, :, 0]
+                steps += [viz.clone()]
             samples = (
                 samples[:, 1:, 0] if self.G.append_loc else samples[:, 1:].squeeze(-1)
             )
             samples = samples.view(n, *self.input_shape)
-            return samples.cpu(), []
+            return samples.cpu(), torch.stack(steps)

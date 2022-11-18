@@ -75,7 +75,7 @@ class VQVAE(common.GM):
         recon = torch.cat([x[:8].cpu(), recon], 0)
         writer.add_image('reconstruction', common.combine_imgs(recon, 2, 8)[None], epoch)
         samples = self.sample(25)
-        writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
+        common.write_grid(writer, 'samples', samples, epoch)
 
 
 class Encoder(nn.Module):

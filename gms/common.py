@@ -10,6 +10,7 @@ import torch
 import torch.nn.functional as F
 import torch.utils.data as data
 import yaml
+from einops import rearrange, repeat
 from scipy.linalg import fractional_matrix_power
 from torch import distributions as tdib
 from torch import nn
@@ -172,21 +173,35 @@ class GM(nn.Module):
             False
         ), "you need to implement the evaluate method. make some samples or something."
 
+    def end_epoch(self):
+        pass
+
+
+def write_grid(writer, tag, x, epoch):
+    assert tuple(x.shape) == (25, 1, 28, 28)
+    x = rearrange(x, '(n1 n2) c h w -> c (n1 h) (n2 w)', n1=5, n2=5)
+    writer.add_image(tag, x, epoch)
+
+
+def write_gridvid(writer, tag, x, epoch):
+    T = x.shape[0]
+    assert tuple(x.shape[1:]) == (25, 1, 28, 28)
+    vid = rearrange(x, 't (n1 n2) c h w -> t c (n1 h) (n2 w)', n1=5, n2=5)[None]
+    vid = repeat(vid, 'b t c h w -> b t (repeat c) h w', repeat=3)
+    writer.add_video(
+        tag,
+        vid,
+        epoch,
+        fps=min(T // 3, 60),
+    )
+
 
 class Autoreg(GM):
     def evaluate(self, writer, x, y, epoch):
         samples, gen = self.sample(25)
-        B, C, H, W = samples.shape
-        samples = samples.reshape([B, C, H, W])
-        writer.add_image('samples', combine_imgs(samples, 5, 5)[None], epoch)
-        if len(gen) != 0:
-            gen = torch.stack(gen).reshape([H * W, B, 1, H, W]).permute(1, 0, 2, 3, 4)
-            writer.add_video(
-                'sampling_process',
-                combine_imgs(gen, 5, 5)[None, :, None],
-                epoch,
-                fps=60,
-            )
+        # convert to a 5x5 grid for sample
+        write_grid(writer, 'samples', samples, epoch)
+        write_gridvid(writer, 'sampling_process', gen, epoch)
 
 
 class Arbiter(GM):

@@ -6,10 +6,13 @@ from torch.optim import Adam
 
 from gms import common
 
+# Part of implementation pulled from https://github.com/rll/deepul/blob/master/demos/lecture2_autoregressive_models_demos.ipynb,
+# which originally pulled from https://github.com/ryujaehun/wavenet
+
 
 class Wavenet(common.Autoreg):
-    """This is basically just taking the idea of Wavenet and applying it to a 1d-ified MNIST.
-    That's pretty much it.
+    """
+    This applies the idea of Wavenet and to a 1d-ified MNIST.
     """
 
     DG = common.AttrDict()
@@ -59,12 +62,10 @@ class Wavenet(common.Autoreg):
             for c in range(28):
                 dist = self.forward(batch)
                 batch[..., r, c] = dist.sample()[..., r, c]
-                steps += [batch.cpu()]
-        return batch.cpu(), steps
+                steps += [batch.cpu().view(25, 1, 28, 28)]
+        return batch.cpu().view(25, 1, 28, 28), torch.stack(steps)
 
 
-# Implementation pulled from https://github.com/rll/deepul/blob/master/demos/lecture2_autoregressive_models_demos.ipynb,
-# which originally pulled from https://github.com/ryujaehun/wavenet
 # Type 'B' Conv
 class DilatedCausalConv1d(nn.Module):
     """Dilated Causal Convolution for WaveNet"""
@@ -80,8 +81,8 @@ class DilatedCausalConv1d(nn.Module):
 
     def forward(self, x):
         if self.mask_type == 'A':
-            # why pad by 2 here? else you are seeing yourself in the output.
-            # this ensures the outputs don't see themselves. 1st one doen't see anything. Nth one sees only n-1.
+            # you need to pad by 2 here, else you are seeing yourself in the output.
+            # 1st one doen't see anything. Nth one sees only n-1.
             return self.conv(F.pad(x, [2, 0]))[..., :-1]
         else:
             # then from then on out, pad as much as you dilate. look at past samples
@@ -91,19 +92,16 @@ class DilatedCausalConv1d(nn.Module):
 class ResidualBlock(nn.Module):
     def __init__(self, res_channels, dilation):
         super(ResidualBlock, self).__init__()
-        # these blocks are somewhat distracting from understanding.
         # the key Wavenet causal thing is just the structure of the dilation, making sure you only see the past not the future
         self.dilated = DilatedCausalConv1d(
             'B', res_channels, 2 * res_channels, dilation=dilation
         )
-        self.conv_res = nn.Conv1d(
-            res_channels, res_channels, 1
-        )  # does this really help much, just transforming the data elementwise? i guess you can learn something that you want to just apply on every element. kind of like the forwards in the transformerr
+        self.conv_res = nn.Conv1d(res_channels, res_channels, 1)
 
     def forward(self, x):
         output = self.dilated(x)
         # PixelCNN gate
         o1, o2 = output.chunk(2, dim=1)
         output = torch.tanh(o1) * torch.sigmoid(o2)
-        output = x + self.conv_res(output)  # Residual network
+        output = x + self.conv_res(output)
         return output

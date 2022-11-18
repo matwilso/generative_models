@@ -45,7 +45,7 @@ class VAE(common.GM):
     def evaluate(self, writer, x, y, epoch):
         """run samples and other evaluations"""
         samples = self.sample(25)
-        writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
+        common.write_grid(writer, 'samples', samples, epoch)
         z_post = self.encoder(x[:8])
         truth = x[:8].cpu()
         recon = self._decode(z_post.mean)
