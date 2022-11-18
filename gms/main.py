@@ -152,10 +152,11 @@ def eval_heavy(logger, model, test_ds, autoencoder, classifier, G):
 def train(model, train_ds, test_ds, autoencoder, classifier, G):
     writer = SummaryWriter(G.logdir)
     logger = common.dump_logger({}, writer, 0, G)
+    # TRAINING AND EVAL LOOP
 
-    # TRAINING LOOP
     for epoch in count(0):
         # TEST
+        # (eval first so we can see random/weights_from/teacher init behavior)
         model.eval()
         with torch.no_grad():
             # if we define an explicit loss function, use it to test how we do on the test set.
@@ -166,9 +167,13 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
                     )
                     _, test_metrics = model.loss(test_x, test_y)
                     for key in test_metrics:
-                        logger[f'{G.model}/test/{key}'] += [
-                            test_metrics[key].detach().cpu()
-                        ]
+                        prefix_key = (
+                            f'{G.model}/test/{key}'
+                            if not key == 'nlogp'
+                            else f'eval/{key}'
+                        )
+
+                        logger[prefix_key] += [test_metrics[key].detach().cpu().item()]
             else:
                 test_batch = next(iter(test_ds))
                 test_x, test_y = test_batch[0].to(G.device), test_batch[1].to(G.device)
@@ -204,7 +209,10 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
             # TODO: see if we can just use loss and write the gan such that it works.
             metrics = model.train_step(train_x, train_y)
             for key in metrics:
-                logger[f'{G.model}/train/{key}'] += [metrics[key].detach().cpu()]
+                prefix_key = (
+                    f'{G.model}/train/{key}' if not key == 'nlogp' else f'train/{key}'
+                )
+                logger[prefix_key] += [metrics[key].detach().cpu()]
 
         model.end_epoch()
         logger['dt/train'] = time.time() - train_time

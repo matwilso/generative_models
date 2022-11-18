@@ -17,7 +17,7 @@ class MADE(common.Autoreg):
         self.nout = 784
         self.hidden_sizes = [G.hidden_size] * 3
 
-        # define a simple MLP neural net
+        # simple MLP neural net w/ masked layers
         net = []
         hs = [self.nin] + self.hidden_sizes + [self.nout]
         for h0, h1 in zip(hs, hs[1:]):
@@ -27,7 +27,7 @@ class MADE(common.Autoreg):
                     nn.ReLU(),
                 ]
             )
-        net.pop()  # pop the last ReLU for the output layer
+        net.pop()  # no activation on the last layer
         self.net = nn.Sequential(*net)
 
         self.m = {}
@@ -35,9 +35,10 @@ class MADE(common.Autoreg):
 
     def create_mask(self):
         """
+        the output that connects to pixel 0 can never see information from pixels 1-783. and so on.
         you are flexible to use the neurons for whatever. like the data could have come from wherever.
         you just need to assure that no information can propagate from anywhere earlier in the image.
-        the output that connects to pixel 0 can never see information from pixels 1-783.
+        this masking generation logic assures that.
         """
         L = len(self.hidden_sizes)
         # sample the order of the inputs and the connectivity of all neurons
@@ -77,7 +78,7 @@ class MADE(common.Autoreg):
                 steps += [samples.view(n, 1, 28, 28).cpu()]
                 # plt.imsave(f'gifs/{i}.png', x.numpy())
             samples = samples.view(n, 1, 28, 28)
-        return samples.cpu(), steps
+        return samples.cpu(), torch.stack(steps)
 
 
 class MaskedLinear(nn.Linear):

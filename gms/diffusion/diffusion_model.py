@@ -127,26 +127,8 @@ class DiffusionModel(common.GM):
         )
         zs, xs, eps = proc(zs), proc(xs), proc(eps)
         sample = zs[-1]
-        # convert to a 5x5 grid for sample
-        writer.add_image(
-            'samples',
-            rearrange(sample, '(n1 n2) c h w -> c (n1 h) (n2 w)', n1=5, n2=5),
-            epoch,
-        )
-        # and for video as well
-        def make_vid(name, arr):
-            # TODO: make make_vid more used across other gen models
-            vid = rearrange(arr, 't (n1 n2) c h w -> t c (n1 h) (n2 w)', n1=5, n2=5)[None]
-            vid = repeat(vid, 'b t c h w -> b t (repeat c) h w', repeat=3)
-            writer.add_video(
-                name,
-                vid,
-                epoch,
-                fps=self.G.timesteps / 3,
-            )
-
-        make_vid('sampling_process', zs)
-        make_vid('x_preds', xs)
-        make_vid('eps_preds', eps)
-
+        common.write_grid(writer, 'samples', sample, epoch)
+        common.write_gridvid(writer, 'sampling_process', zs, epoch)
+        common.write_gridvid(writer, 'diffusion_model/eps', eps, epoch)
+        common.write_gridvid(writer, 'diffusion_model/x', xs, epoch)
         torch.manual_seed(random.randint(0, 2**32))

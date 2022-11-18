@@ -77,8 +77,8 @@ class PixelCNN(common.Autoreg):
             for c in range(28):
                 dist = self.forward(batch)
                 batch[..., r, c] = dist.sample()[..., r, c]
-                steps += [batch.cpu()]
-        return batch.cpu(), steps
+                steps += [batch.cpu().view(25, 1, 28, 28)]
+        return batch.cpu().view(25, 1, 28, 28), torch.stack(steps)
 
 
 class MaskConv2d(nn.Conv2d):

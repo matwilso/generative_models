@@ -62,21 +62,9 @@ class PixelTransformer(common.Autoreg):
         for i in range(self.block_size):
             dist = self.forward(batch)
             batch[:, i] = dist.sample()[:, i]
-            steps += [batch.cpu()]
-        return batch, steps
+            steps += [batch.view(25, 1, 28, 28).cpu()]
 
-    def evaluate(self, writer, x, y, epoch):
-        samples, gen = self.sample(25)
-        B, HW, C = samples.shape
-        gen = torch.stack(gen).reshape([HW, B, 1, 28, 28]).permute(1, 0, 2, 3, 4)
-        samples = samples.reshape([B, C, 28, 28]).cpu()
-        writer.add_video(
-            'sampling_process',
-            common.combine_imgs(gen, 5, 5)[None, :, None],
-            epoch,
-            fps=60,
-        )
-        writer.add_image('samples', common.combine_imgs(samples, 5, 5)[None], epoch)
+        return batch.view(25, 1, 28, 28), torch.stack(steps)
 
 
 class CausalSelfAttention(nn.Module):
