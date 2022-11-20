@@ -132,24 +132,6 @@ python -m gms.main --model=diffusion_model
 ![](assets/diffusion_sample_10.gif)
 ![](assets/diffusion_10.gif)
 
-
-## Evals
-
-```
-python -m gms.main --model diffusion_model --logdir logs/1105/noon/diffusion/2 --autoencoder logs/1105/noon/arbiter/model.jit.pt --classifier logs/1105/noon/classifier/model.jit.pt
-
-
-
-python /home/matwilso/code/generative_models/gms/main.py --model=autoencoder --logdir logs/1102/autoencoder --binarize 0
-
-python /home/matwilso/code/generative_models/gms/main.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_100steps/ --autoencoder logs/1102/autoencoder2/ --bs 500 --mode eval
-
-python /home/matwilso/code/generative_models/gms/main.py --model=v_diffusion_model --logdir logs/1102/900/ddim_500steps --epochs 5 --timesteps 500
-
-python /home/matwilso/code/generative_models/gms/main.py --model=v_diffusion_model --weights_from logs/1102/900/ddim_500steps/ --autoencoder logs/1102/autoencoder2/ --bs 500 --mode eval --timesteps 500
-```
-
-
 ## Future
 - EBMs. Not used in any recent SOTA results afaik, but knowing about EBMs seems to unite a few other approaches like GANs and Diffusion models in my mind. 
 - Flows (eh might just skip them. i got sick of flows after messing with them a bit ago. i find them quite messy in practice. plus not much seems to have happened with them. they're too limiting in constraints they place on architecture it seems.)
