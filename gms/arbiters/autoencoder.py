@@ -7,6 +7,9 @@ from gms import common
 
 
 class Autoencoder(common.Arbiter):
+    """
+    Autoencoder model used to produce a latent space for computing metrics in (ie. just used for evaluation)
+    """
 
     DG = common.AttrDict()  # default G
     DG.eval_heavy = False
@@ -30,7 +33,7 @@ class Autoencoder(common.Arbiter):
             recon_loss = -tdib.Bernoulli(probs=decoded).log_prob(x).mean((1, 2, 3))
         else:
             recon_loss = -tdib.Normal(decoded, 1).log_prob(x).mean((1, 2, 3))
-        # kl div constraint
+        # kl div constraint to normalize the latent a bit (not sure if neccessary)
         z_post = tdib.Normal(z, 1)
         z_prior = tdib.Normal(0, 1)
         kl_loss = tdib.kl_divergence(z_post, z_prior).mean(-1)

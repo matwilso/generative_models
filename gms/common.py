@@ -173,9 +173,6 @@ class GM(nn.Module):
             False
         ), "you need to implement the evaluate method. make some samples or something."
 
-    def end_epoch(self):
-        pass
-
 
 def write_grid(writer, tag, x, epoch):
     assert tuple(x.shape) == (25, 1, 28, 28)

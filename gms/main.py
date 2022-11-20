@@ -214,7 +214,6 @@ def train(model, train_ds, test_ds, autoencoder, classifier, G):
                 )
                 logger[prefix_key] += [metrics[key].detach().cpu()]
 
-        model.end_epoch()
         logger['dt/train'] = time.time() - train_time
 
 

@@ -63,7 +63,7 @@ class Wavenet(common.Autoreg):
                 dist = self.forward(batch)
                 batch[..., r, c] = dist.sample()[..., r, c]
                 steps += [batch.cpu().view(25, 1, 28, 28)]
-        return batch.cpu().view(25, 1, 28, 28), torch.stack(steps)
+        return steps[-1], torch.stack(steps)
 
 
 # Type 'B' Conv
