@@ -11,18 +11,16 @@ from gms import common
 class GAN(common.GM):
     DG = common.AttrDict()  # default G
     DG.noise_size = 128
+    DG.lr = 5e-5
     # don't binarize the data for GAN, because it's easier to deal with this way.
     DG.binarize = 0
-    DG.lr = 1e-4
 
     def __init__(self, G):
         super().__init__(G)
         self.disc = Discriminator(G)
         self.gen = Generator(G)
-        #self.disc_optim = Adam(self.disc.parameters(), lr=G.lr, betas=(0.5, 0.999))
-        #self.gen_optim = Adam(self.gen.parameters(), lr=G.lr, betas=(0.5, 0.999))
-        self.disc_optim = Adam(self.disc.parameters(), lr=1e-4)
-        self.gen_optim = Adam(self.gen.parameters(), lr=1e-4)
+        self.disc_optim = Adam(self.disc.parameters(), lr=G.lr, betas=(0.5, 0.999))
+        self.gen_optim = Adam(self.gen.parameters(), lr=G.lr, betas=(0.5, 0.999))
         self.bce = nn.BCELoss()
         self.fixed_noise = torch.randn(25, G.noise_size).to(G.device)
 
@@ -73,16 +71,16 @@ class Generator(nn.Module):
         H = G.hidden_size
         self.net = nn.Sequential(
             nn.ConvTranspose2d(G.noise_size, H, 5, 1),
-            nn.GroupNorm(32, H),
+            nn.BatchNorm2d(H),
             nn.ReLU(),
             nn.ConvTranspose2d(H, H, 4, 2),
-            nn.GroupNorm(32, H),
+            nn.BatchNorm2d(H),
             nn.ReLU(),
             nn.ConvTranspose2d(H, H, 4, 2),
-            nn.GroupNorm(32, H),
+            nn.BatchNorm2d(H),
             nn.ReLU(),
             nn.ConvTranspose2d(H, 1, 3, 1),
-            nn.Sigmoid(),
+            nn.Tanh(),
         )
         self.apply(weights_init)
 
@@ -99,10 +97,10 @@ class Discriminator(nn.Module):
             nn.Conv2d(1, H, 3, 2),
             nn.LeakyReLU(),
             nn.Conv2d(H, H, 3, 2),
-            nn.GroupNorm(32, H),
+            nn.BatchNorm2d(H),
             nn.LeakyReLU(),
             nn.Conv2d(H, H, 3, 1),
-            nn.GroupNorm(32, H),
+            nn.BatchNorm2d(H),
             nn.LeakyReLU(),
             nn.Conv2d(H, 1, 3, 2),
             nn.Flatten(-3),
@@ -119,7 +117,6 @@ def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
         nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('GroupNorm') != -1:
-    #elif classname.find('BatchNorm') != -1:
+    elif classname.find('BatchNorm') != -1:
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
