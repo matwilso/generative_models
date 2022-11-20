@@ -7,6 +7,11 @@ from gms.arbiters.autoencoder import Encoder
 
 
 class Classifier(common.Arbiter):
+    """
+    MNIST classifier model, can be used for evaluating quality of class-conditioned samples
+    (if you ask for a "1" and the classifier thinks it's a "1", then it's a good sample)
+    """
+
     DG = common.AttrDict()  # default G
     DG.eval_heavy = False
     DG.epochs = 6  # we start to overfit after about this many

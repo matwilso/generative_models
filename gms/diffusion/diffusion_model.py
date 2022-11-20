@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 from torch.cuda import amp
-from torch.optim import Adam, lr_scheduler
+from torch.optim import Adam
 
 from gms import common
 from gms.diffusion.gaussian_diffusion import GaussianDiffusion
@@ -59,19 +59,6 @@ class DiffusionModel(common.GM):
         else:
             self.size = 28
         self.scaler = amp.GradScaler()
-        # self.scheduler = lr_scheduler.LinearLR
-
-        self.scheduler = {
-            'none': lr_scheduler.LambdaLR(self.optimizer, lambda x: 1),
-            'linear': lr_scheduler.LinearLR(
-                self.optimizer, start_factor=1.0, end_factor=0.0, total_iters=G.epochs
-            ),
-        }[self.G.lr_scheduler]
-
-    def end_epoch(self):
-        self.scheduler.step()
-        # print learning rate
-        print("Learning rate: ", self.optimizer.param_groups[0]['lr'])
 
     def train_step(self, x, y):
         # train network using torch AMP for float16
@@ -85,16 +72,6 @@ class DiffusionModel(common.GM):
         self.scaler.update()
         metrics['loss_scale'] = torch.tensor(self.scaler.get_scale())
         return metrics
-
-        # self.optimizer.zero_grad()
-        ## sometimes drop out the class
-        # y[torch.rand(y.shape[0]) < self.G.cf_drop_prob] = -1
-        # loss, metrics = self.loss(x, y)
-        ##loss *= 100.0
-        # loss.backward()
-        # self.optimizer.step()
-        ##print(loss)
-        # return metrics
 
     def loss(self, x, y):
         metrics = self.diffusion.training_losses(net=partial(self.net, guide=y), x=x)

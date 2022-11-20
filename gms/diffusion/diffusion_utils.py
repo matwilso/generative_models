@@ -106,7 +106,8 @@ def predict_x_from_v(*, z, v, logsnr):
 
 
 def log1mexp(x, expm1_guard=1e-7):
-    # See https://cran.r-project.org/package=Rmpfr/.../log1mexp-note.pdf
+    # taken from one of the links here: https://github.com/pytorch/pytorch/issues/39242
+    # See https://cran.r-project.org/web/packages/Rmpfr/vignettes/log1mexp-note.pdf
     t = x < math.log(0.5)
     y = torch.zeros_like(x)
     y[t] = torch.log1p(-x[t].exp())
@@ -120,13 +121,6 @@ def log1mexp(x, expm1_guard=1e-7):
 
     y[~t] = log1mexp_fw.detach() + (log1mexp_bw - log1mexp_bw.detach())
     return y
-
-
-# def log1mexp(x):
-#    # Computes log(1-exp(-|x|))
-#    # See https://cran.r-project.org/web/packages/Rmpfr/vignettes/log1mexp-note.pdf
-#    x = -x.abs()
-#    return torch.where(x > -0.693, F.log(-torch.expm1(x)), torch.log1p(-torch.exp(x)))
 
 
 def broadcast_from_left(x, shape):

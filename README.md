@@ -2,6 +2,8 @@
 
 **[Motivation](#motivation) | [Autoregressive models 📃](#autoregressive-models) | [VAEs 🪞](#variational-autoencoders-vaes) | [GANs 🧑‍🎨/🕵](#generative-adversarial-networks-gans) | [Diffusion models 🧪](#diffusion-models)**
 
+"Creating noise from data is easy; creating data from noise is generative modeling." - https://arxiv.org/abs/2011.13456.
+
 The goal of this repo is to provide implementations of the important fundamental approaches to generative modeling, with explanations and code that are as simple as possible to understand (in pytorch).
 Most models are expressed within about 100 lines of code, including network architecture definitions---except for diffusion models, which get a bit messy.
 As such, they do not contain all SOTA architectures or other tricks.

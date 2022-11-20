@@ -215,8 +215,6 @@ def timestep_embedding(*, timesteps, dim, max_period):
     :param max_period: controls the minimum frequency of the embeddings.
     :return: an [N x dim] Tensor of positional embeddings.
     """
-    # TODO: fix this.
-
     half = dim // 2
     freqs = torch.exp(
         -math.log(max_period)
@@ -230,20 +228,20 @@ def timestep_embedding(*, timesteps, dim, max_period):
     return embedding
 
 
-# TODO: switch to this and A/B test
-def get_timestep_embedding(
-    timesteps, embedding_dim, max_time=1000.0, dtype=torch.float32
-):
-    """Get timestep embedding."""
-    assert len(timesteps.shape) == 1  # and timesteps.dtype == tf.int32
-    timesteps *= 1000.0 / max_time
-
-    half_dim = embedding_dim // 2
-    emb = np.log(10000) / (half_dim - 1)
-    emb = torch.exp(torch.arange(half_dim, dtype=dtype) * -emb)
-    emb = timesteps.astype(dtype)[:, None] * emb[None, :]
-    emb = torch.concatenate([torch.sin(emb), torch.cos(emb)], axis=1)
-    if embedding_dim % 2 == 1:  # zero pad
-        emb = torch.pad(emb, dtype(0), ((0, 0, 0), (0, 1, 0)))
-    assert emb.shape == (timesteps.shape[0], embedding_dim)
-    return emb
+# TODO: A/B test using this function and maybe switch to it
+# def get_timestep_embedding(
+#    timesteps, embedding_dim, max_time=1000.0, dtype=torch.float32
+# ):
+#    """Get timestep embedding."""
+#    assert len(timesteps.shape) == 1  # and timesteps.dtype == tf.int32
+#    timesteps *= 1000.0 / max_time
+#
+#    half_dim = embedding_dim // 2
+#    emb = np.log(10000) / (half_dim - 1)
+#    emb = torch.exp(torch.arange(half_dim, dtype=dtype) * -emb)
+#    emb = timesteps.astype(dtype)[:, None] * emb[None, :]
+#    emb = torch.concatenate([torch.sin(emb), torch.cos(emb)], axis=1)
+#    if embedding_dim % 2 == 1:  # zero pad
+#        emb = torch.pad(emb, dtype(0), ((0, 0, 0), (0, 1, 0)))
+#    assert emb.shape == (timesteps.shape[0], embedding_dim)
+#    return emb
