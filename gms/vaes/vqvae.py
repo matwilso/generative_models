@@ -63,7 +63,7 @@ class VQVAE(common.GM):
         return embed_loss, decoded, perplexity, idxs
 
     def sample(self, n):
-        prior_idxs = self.pixel_transformer.sample(n)[0]
+        prior_idxs = self.pixel_transformer.sample(n, vqvae=True)[0]
         prior_enc = self.vq.idx_to_encoding(prior_idxs)
         prior_enc = prior_enc.reshape([n, 7, 7, -1]).permute(0, 3, 1, 2)
         decoded = self.decoder(prior_enc)

@@ -3,7 +3,6 @@ from functools import partial
 from pathlib import Path
 
 import torch
-from einops import rearrange, repeat
 from torch.cuda import amp
 from torch.optim import Adam, lr_scheduler
 
@@ -19,6 +18,7 @@ class DiffusionModel(common.GM):
     DG.hidden_size = 128
     DG.dropout = 0.0
     DG.sampler = 'ddim'
+    DG.mean_type = 'v'
     DG.eval_heavy = 1
     # conditional models
     DG.class_cond = 1
@@ -45,7 +45,7 @@ class DiffusionModel(common.GM):
             self.teacher_net = None
 
         self.diffusion = GaussianDiffusion(
-            mean_type='v',
+            mean_type=G.mean_type,
             num_steps=G.timesteps,
             sampler=G.sampler,
             teacher_net=self.teacher_net,

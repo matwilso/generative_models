@@ -1,6 +1,5 @@
 from functools import partial
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -10,7 +9,6 @@ from gms.diffusion.diffusion_utils import (
     diffusion_reverse,
     get_logsnr_schedule,
     mean_flat,
-    normal_kl,
     predict_eps_from_x,
     predict_v_from_x_and_eps,
     predict_x_from_eps,

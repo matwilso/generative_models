@@ -1,6 +1,8 @@
 
 test: format-check lint
 
+test-heavy: format-check lint test-run-models
+
 lint:
 	find . -type f -name "*.py" | xargs pylint
 
@@ -13,4 +15,4 @@ format:
 	isort --profile black .
 
 test-run-models:
-	 python -m pytest -v -x -s
+	 pytest -v -x

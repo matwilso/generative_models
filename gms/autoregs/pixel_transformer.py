@@ -56,15 +56,19 @@ class PixelTransformer(common.Autoreg):
         logits = self.ln_f(x)
         return self.dist_head(logits)
 
-    def sample(self, n):
+    def sample(self, n, vqvae=False):
         steps = []
         batch = torch.zeros(n, self.block_size, self.in_size).to(self.G.device)
         for i in range(self.block_size):
             dist = self.forward(batch)
             batch[:, i] = dist.sample()[:, i]
-            steps += [batch.view(25, 1, 28, 28).cpu()]
+            # this model can also be used to sample the prior for the VQ-VAE
+            if vqvae:
+                steps += [batch]
+            else:
+                steps += [batch.view(25, 1, 28, 28).cpu()]
 
-        return batch.view(25, 1, 28, 28), torch.stack(steps)
+        return steps[-1], torch.stack(steps)
 
 
 class CausalSelfAttention(nn.Module):
