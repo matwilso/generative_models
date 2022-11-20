@@ -28,7 +28,7 @@ cmds+=( "$BASE_CMD --logdir $BASE_DIR/teacher --lr 3e-4 --timesteps $MAX_STEPS" 
 # step 1 student, just learns a network that conditions on w, instead of doing classifier free guidance
 cmds+=( "$BASE_CMD $STUDENT_ARGS --lr 3e-4 --teacher_path $TEACHER_DIR/model.pt --teacher_mode step1 --logdir $STUDENT_DIR/$MAX_STEPS --timesteps $MAX_STEPS" )
 # step 2-N students
-STEP2_ARGS="--model diffusion_model --epochs 10 --lr 1e-4 --lr_scheduler linear --teacher_mode step2"
+STEP2_ARGS="--model diffusion_model --epochs 10 --lr 1e-4 --lr_scheduler none --teacher_mode step2"
 previ=$MAX_STEPS
 for i in 128 64 32 16 8 4 2 1; do
     cmd="$BASE_CMD $STEP2_ARGS --teacher_path $STUDENT_DIR/$previ/model.pt --logdir $STUDENT_DIR/$i --timesteps $i"
