@@ -42,7 +42,7 @@ def discover_models():
     models = {}
     path = Path(__file__).parent
     for file in path.rglob('*.py'):
-        if '__init__' in file.name or 'main' in file.name:
+        if '__init__' in file.name or 'main' in file.name or 'common' in file.name:
             continue
         relative_path = file.relative_to(path.parent)
         import_format = str(relative_path).replace('/', '.').replace('.py', '')
