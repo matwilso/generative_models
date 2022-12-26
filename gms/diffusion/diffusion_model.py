@@ -30,13 +30,13 @@ class DiffusionModel(common.GM):
 
     def __init__(self, G):
         super().__init__(G)
-        self.net = SimpleUnet(G)
+        self.net = SimpleUnet(G.hidden_size, G.dropout)
         if self.G.teacher_path != Path('.') and self.G.weights_from == Path('.'):
             print("Loading teacher model")
             # initialize student to teacher weights
             self.load_state_dict(torch.load(self.G.teacher_path), strict=False)
             # make teacher itself and freeze it
-            self.teacher_net = SimpleUnet(G)
+            self.teacher_net = SimpleUnet(G.hidden_size, G.dropout)
             self.teacher_net.load_state_dict(self.net.state_dict().copy())
             self.teacher_net.eval()
             for param in self.teacher_net.parameters():

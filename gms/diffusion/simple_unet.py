@@ -14,11 +14,8 @@ MAX_TIMESTEPS = 256
 
 
 class SimpleUnet(nn.Module):
-    def __init__(self, G):
+    def __init__(self, channels, dropout):
         super().__init__()
-        self.G = G
-        channels = G.hidden_size
-        dropout = G.dropout
         time_embed_dim = 2 * channels
         self.time_embed = nn.Sequential(
             nn.Linear(64, time_embed_dim),
