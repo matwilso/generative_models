@@ -7,7 +7,7 @@
 # bash gms/diffusion/progressive_distillation.sh -d
 
 BASE_DIR=logs/$(date +%F)/diffusion_model
-BASE_CMD='python -m gms.main --model diffusion_model'
+BASE_CMD='python3 -m gms.main --model diffusion_model'
 
 TEACHER_DIR=$BASE_DIR/teacher
 STUDENT_DIR=$BASE_DIR/student
